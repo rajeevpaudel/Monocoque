@@ -2,7 +2,7 @@ SELECT
     session_key,
     driver_number,
     lap_number,
-    toDateTime(date_start)          AS lap_start,
+    parseDateTime64BestEffort(date_start) AS lap_start,
     lap_duration,
     is_pit_out_lap,
     duration_sector_1,

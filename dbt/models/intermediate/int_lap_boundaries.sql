@@ -1,13 +1,23 @@
 -- Per-lap time windows for any OpenF1 session.
 -- lap_end is NULL for the final lap of each driver (handle with IS NULL check downstream).
+-- Sorted by (session_key, driver_number, lap_start) to support ASOF JOIN in mart_lap_telemetry.
+{{
+    config(
+        materialized='table',
+        engine='MergeTree()',
+        order_by='(session_key, driver_number, lap_start)',
+    )
+}}
+
 SELECT
     session_key,
     driver_number,
     lap_number,
     lap_start,
-    LEAD(lap_start) OVER (
+    leadInFrame(lap_start) OVER (
         PARTITION BY session_key, driver_number
         ORDER BY lap_number
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
     )                           AS lap_end,
     lap_duration,
     is_pit_out_lap,

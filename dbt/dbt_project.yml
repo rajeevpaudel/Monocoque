@@ -1,0 +1,34 @@
+name: 'f1_warehouse'
+version: '1.0.0'
+config-version: 2
+
+profile: 'f1_warehouse'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  f1_warehouse:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: table
+      +schema: intermediate
+    marts:
+      +materialized: table
+      dimensions:
+        +schema: mart
+      facts:
+        +materialized: incremental
+        +incremental_strategy: append
+        +schema: mart
+      analytics:
+        +schema: mart
+      telemetry:
+        +materialized: incremental
+        +incremental_strategy: append
+        +schema: mart

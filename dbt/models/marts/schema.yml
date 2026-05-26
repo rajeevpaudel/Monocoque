@@ -73,6 +73,18 @@ models:
           - not_null
           - unique
 
+  - name: mart_lap_telemetry
+    columns:
+      - name: session_key
+        tests:
+          - not_null
+      - name: driver_number
+        tests:
+          - not_null
+      - name: lap_number
+        tests:
+          - not_null
+
   - name: mart_qualifying_summary
     columns:
       - name: driver_id
