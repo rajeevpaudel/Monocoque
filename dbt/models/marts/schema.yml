@@ -73,3 +73,15 @@ models:
           - not_null
           - unique
 
+  - name: mart_qualifying_summary
+    columns:
+      - name: driver_id
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
+
