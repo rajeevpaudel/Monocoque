@@ -1,0 +1,48 @@
+version: 2
+
+sources:
+  - name: raw_jolpica
+    database: raw_jolpica
+    schema: raw_jolpica
+    tables:
+      - name: seasons
+      - name: circuits
+      - name: constructors
+      - name: drivers
+      - name: races
+      - name: results
+      - name: qualifying
+      - name: sprint_results
+      - name: lap_times
+      - name: pit_stops
+      - name: driver_standings
+      - name: constructor_standings
+
+  - name: raw_openf1
+    database: raw_openf1
+    schema: raw_openf1
+    tables:
+      - name: sessions
+        columns:
+          - name: session_type
+            tests:
+              - accepted_values:
+                  arguments:
+                    values: ['Race', 'Qualifying', 'Sprint', 'Sprint Qualifying',
+                             'Practice', 'Practice 1', 'Practice 2', 'Practice 3']
+      - name: drivers
+      - name: laps
+      - name: pit
+      - name: stints
+      - name: intervals
+      - name: weather
+      - name: race_control
+      - name: car_data
+      - name: location
+      - name: team_radio
+
+  - name: dim
+    database: dim
+    schema: dim
+    tables:
+      - name: driver_id_map
