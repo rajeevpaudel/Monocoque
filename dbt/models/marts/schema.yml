@@ -1,0 +1,75 @@
+version: 2
+
+models:
+  - name: dim_drivers
+    columns:
+      - name: driver_id
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_circuits
+    columns:
+      - name: circuit_id
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_constructors
+    columns:
+      - name: constructor_id
+        tests:
+          - not_null
+          - unique
+
+  - name: fact_race_results
+    columns:
+      - name: jolpica_driver_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_drivers')
+                field: driver_id
+      - name: constructor_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_constructors')
+                field: constructor_id
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
+
+  - name: fact_qualifying
+    columns:
+      - name: driver_id
+        tests:
+          - not_null
+
+  - name: fact_sprint_results
+    columns:
+      - name: driver_id
+        tests:
+          - not_null
+
+  - name: fact_laps
+    columns:
+      - name: driver_id
+        tests:
+          - not_null
+      - name: lap_number
+        tests:
+          - not_null
+
+  - name: dim_sessions
+    columns:
+      - name: session_key
+        tests:
+          - not_null
+          - unique
+
