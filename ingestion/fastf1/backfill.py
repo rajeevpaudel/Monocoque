@@ -28,8 +28,8 @@ IDENTIFIERS = ["FP1", "FP2", "FP3", "Q", "SQ", "S", "R"]
 # First match in the list wins when looking up the session_key.
 IDENTIFIER_TO_SESSION_TYPES: dict[str, list[str]] = {
     "FP1": ["Practice 1", "Practice"],
-    "FP2": ["Practice 2", "Practice"],
-    "FP3": ["Practice 3", "Practice"],
+    "FP2": ["Practice 2"],
+    "FP3": ["Practice 3"],
     "Q":   ["Qualifying"],
     "SQ":  ["Sprint Qualifying", "Sprint Shootout"],
     "S":   ["Sprint"],
