@@ -12,6 +12,7 @@ version = "0.1.0"
 requires-python = ">=3.10"
 dependencies = [
     "clickhouse-connect>=0.7",
+    "fastf1>=3.4",
     "pydantic>=2.0",
     "structlog>=24.0",
     "pyarrow>=15.0",
