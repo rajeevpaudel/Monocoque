@@ -1,7 +1,7 @@
 # FastF1 Distance Integration Design
 
 **Date:** 2026-05-29  
-**Scope:** Add `distance_m` to `mart_lap_telemetry` via FastF1 as the authoritative source  
+**Scope:** Add `distance_m` to `mart_lap_telemetry` via FastF1 as the authoritative source — all session types (Practice, Qualifying, Sprint, Race)  
 **Priority:** Low (nice-to-have per new-data-req.md §6)
 
 ---
@@ -18,7 +18,7 @@ The F1 live telemetry stream carries a `Distance` channel (cumulative metres fro
 
 Use **FastF1 (Option A — thin distance-only table)**. Store only the columns we don't already have from OpenF1. No duplication of Speed, RPM, GPS, etc.
 
-Scope: **qualifying sessions only**, years **2023–present** (earlier years have no OpenF1 telemetry to join distance into).
+Scope: **all session types** (Practice 1/2/3, Qualifying, Sprint Qualifying, Sprint, Race), years **2023–present** (earlier years have no OpenF1 telemetry to join distance into).
 
 ---
 
@@ -52,7 +52,7 @@ CREATE DATABASE IF NOT EXISTS raw_fastf1;
 CREATE TABLE IF NOT EXISTS raw_fastf1.car_telemetry (
     year            UInt16,
     round           UInt8,
-    session_type    LowCardinality(String),  -- 'Qualifying'
+    session_type    LowCardinality(String),  -- 'Practice 1/2/3', 'Qualifying', 'Sprint', 'Race', etc.
     driver_number   UInt8,
     date            DateTime64(3, 'UTC'),
     distance_m      Float32,
@@ -73,7 +73,7 @@ No `session_key` at storage time — we bridge to OpenF1's `session_key` via `in
 
 Thin wrapper:
 - Configures FastF1's local cache dir (`/tmp/fastf1_cache` or env `FASTF1_CACHE_DIR`)
-- `get_qualifying_telemetry(year, round) -> list[dict]` — loads the session, iterates drivers, returns rows with `(year, round, session_type, driver_number, date, distance_m)`
+- `get_session_telemetry(year, round, session_identifier) -> list[dict]` — loads any session type via `fastf1.get_session(year, round, identifier)`, iterates drivers, returns rows with `(year, round, session_type, driver_number, date, distance_m)`. `session_identifier` is the short code FastF1 accepts: `'FP1'`, `'FP2'`, `'FP3'`, `'Q'`, `'SQ'`, `'S'`, `'R'`. The `session_type` stored is `session.session_type` (FastF1's long form: `'Practice'`, `'Qualifying'`, `'Race'`, etc.) — verified to match OpenF1's session_type values so the ASOF JOIN works without a mapping layer
 - Filters to laps where `Distance` is not NaN and is monotonically increasing (FastF1 sometimes has reset artefacts at lap boundaries)
 
 ### `ingestion/fastf1/backfill.py`
@@ -81,16 +81,24 @@ Thin wrapper:
 ```
 usage: python -m ingestion.fastf1.backfill --start 2023 --end 2025
 
+SESSION_TYPES = ['FP1', 'FP2', 'FP3', 'Q', 'SQ', 'S', 'R']
+
 for each year:
     for each round (1..N):
-        if (year, round) already in checkpoint: skip
-        rows = client.get_qualifying_telemetry(year, round)
-        clickhouse.insert('raw_fastf1.car_telemetry', rows)
-        checkpoint.add((year, round))
+        for each session_type in SESSION_TYPES:
+            if (year, round, session_type) already in checkpoint: skip
+            try:
+                rows = client.get_session_telemetry(year, round, session_type)
+            except SessionNotAvailable:
+                continue  # sprint weekends skip FP3/SQ gracefully
+            clickhouse.insert('raw_fastf1.car_telemetry', rows)
+            checkpoint.add((year, round, session_type))
 ```
 
-Checkpoint file: `ingestion/fastf1/.backfill_checkpoint.json` (same pattern as OpenF1).  
-Rate limiting: FastF1 fetches from F1's CDN — no strict rate limit, but cache after first fetch means re-runs are free.
+Sessions that don't exist for a given weekend (e.g. FP3 on a sprint weekend) raise a FastF1 `SessionNotAvailableError` — catch and skip gracefully.
+
+Checkpoint file: `ingestion/fastf1/.backfill_checkpoint.json` (same pattern as OpenF1). Checkpoint key is `"year-round-session_type"` (e.g. `"2024-5-Q"`).  
+Rate limiting: FastF1 fetches from F1's CDN — no strict rate limit, but the local cache means re-runs for already-fetched sessions are free.
 
 ### Pydantic model (`ingestion/shared/models.py` addition)
 
@@ -133,7 +141,7 @@ Add a third ASOF JOIN after the existing two:
 ASOF LEFT JOIN {{ ref('stg_fastf1__distances') }} f1d
     ON  f1d.year          = sm.season
     AND f1d.round         = sm.round
-    AND f1d.session_type  = 'Qualifying'
+    AND f1d.session_type  = sm.session_type
     AND f1d.driver_number = cd.driver_number
     AND f1d.date         <= cd.date
 ```
@@ -179,5 +187,6 @@ The ASOF JOIN naturally handles sub-millisecond timestamp misalignment between F
 ## What This Does NOT Do
 
 - Does not ingest other FastF1 channels (Speed, RPM, GPS) — OpenF1 already covers those
-- Does not backfill pre-2023 (no OpenF1 telemetry to join into)
+- Does not backfill pre-2023 (no OpenF1 telemetry to join distance into)
 - Does not replace the GPS arc-length computation in `fetch-tracks-warehouse.mjs` — that script uses GPS for SVG path generation, not for lap distance
+- `session_type` stored in `raw_fastf1` is FastF1's long-form value from `session.session_type`. If during implementation it turns out FastF1's values don't exactly match OpenF1's (e.g. `'Practice'` vs `'Practice 1'`), a `CASE` mapping in `stg_fastf1__distances` resolves it.
