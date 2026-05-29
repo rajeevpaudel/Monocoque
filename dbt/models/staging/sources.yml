@@ -46,3 +46,9 @@ sources:
     schema: dim
     tables:
       - name: driver_id_map
+
+  - name: raw_fastf1
+    database: raw_fastf1
+    schema: raw_fastf1
+    tables:
+      - name: car_telemetry
