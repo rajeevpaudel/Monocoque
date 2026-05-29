@@ -5,6 +5,9 @@ import os
 import fastf1
 import pandas as pd
 import pyarrow as pa
+import structlog
+
+log = structlog.get_logger()
 
 _CACHE_DIR = os.environ.get("FASTF1_CACHE_DIR", "/tmp/fastf1_cache")
 os.makedirs(_CACHE_DIR, exist_ok=True)
@@ -71,9 +74,10 @@ def get_session_telemetry(
         for _, lap in driver_laps.iterrows():
             try:
                 tel = lap.get_telemetry()
-            except Exception:
+            except Exception as exc:
+                log.warning("lap_telemetry_load_failed", driver=driver_number, error=str(exc))
                 continue
-            if tel.empty or "Distance" not in tel.columns:
+            if tel.empty or "Distance" not in tel.columns or "Date" not in tel.columns:
                 continue
             processed = _process_lap_telemetry(tel, session_key, driver_number)
             if not processed.empty:
