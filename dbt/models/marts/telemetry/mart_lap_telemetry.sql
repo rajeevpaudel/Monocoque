@@ -2,6 +2,7 @@
 -- Partition by (year, session_key) — query always filters on session_key for speed.
 -- First ASOF JOIN assigns lap number from boundaries (nearest preceding lap_start).
 -- Second ASOF JOIN aligns GPS timestamps to telemetry timestamps.
+-- Third ASOF JOIN aligns FastF1 distance samples to telemetry timestamps.
 {{
     config(
         materialized='incremental',
@@ -27,6 +28,7 @@ SELECT
     loc.x,
     loc.y,
     loc.z,
+    f1d.distance_m                  AS distance_m,
     sm.season                       AS season,
     sm.round                        AS round,
     sm.session_type                 AS session_type,
@@ -34,7 +36,18 @@ SELECT
     d.name_acronym                  AS driver_code,
     d.team_name                     AS team_name,
     if(d.team_colour IS NOT NULL AND d.team_colour != '', concat('#', d.team_colour), NULL) AS team_colour,
-    cd._ingested_at                 AS _ingested_at
+    cd._ingested_at                 AS _ingested_at,
+    -- 1 when GPS coordinates changed from the previous sample; 0 when duplicated.
+    -- GPS updates at ~2-3 Hz while telemetry is sampled at ~3.7 Hz.
+    -- Placed last to match the column added via migration 005.
+    toUInt8(
+        loc.x != lagInFrame(loc.x, 1) OVER (
+            PARTITION BY cd.session_key, cd.driver_number ORDER BY cd.date
+        )
+        OR loc.y != lagInFrame(loc.y, 1) OVER (
+            PARTITION BY cd.session_key, cd.driver_number ORDER BY cd.date
+        )
+    )                               AS gps_updated
 FROM {{ ref('stg_openf1__car_data') }}      cd
 ASOF LEFT JOIN {{ ref('int_lap_boundaries') }}  lb
     ON  lb.session_key   = cd.session_key
@@ -44,6 +57,10 @@ ASOF LEFT JOIN {{ ref('stg_openf1__location') }} loc
     ON  loc.session_key   = cd.session_key
     AND loc.driver_number = cd.driver_number
     AND loc.date         <= cd.date
+ASOF LEFT JOIN {{ ref('stg_fastf1__distances') }} f1d
+    ON  f1d.session_key   = cd.session_key
+    AND f1d.driver_number = cd.driver_number
+    AND f1d.date         <= cd.date
 LEFT JOIN {{ ref('int_session_map') }}      sm
     ON  sm.session_key = cd.session_key
 LEFT JOIN {{ ref('stg_openf1__drivers') }}  d
