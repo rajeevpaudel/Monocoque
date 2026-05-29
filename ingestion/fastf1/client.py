@@ -33,7 +33,7 @@ def _process_lap_telemetry(
     """
     tel = tel_df[["Date", "Distance"]].copy()
     tel = tel.dropna(subset=["Distance"])
-    tel = tel[tel["Distance"] >= 0]
+    tel = tel[tel["Distance"] >= 0].copy()
     if tel.empty:
         return pd.DataFrame(columns=["session_key", "driver_number", "date", "distance_m"])
     tel["session_key"] = session_key
