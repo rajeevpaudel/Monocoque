@@ -66,16 +66,58 @@ Declarative tests that run on every `dbt build`. A failure prevents the downstre
 
 ### Tier 2 — Singular SQL tests (dbt/tests/)
 
-Business-rule assertions that encode domain knowledge about what valid F1 data looks like.
+Business-rule assertions that encode domain knowledge about what valid F1 data looks like. Grouped by failure category.
+
+**Completeness — are all expected rows present?**
 
 | File | Rule |
 |---|---|
 | `assert_driver_count_per_session.sql` | Every qualifying session has 18–20 drivers |
-| `assert_no_sprint_contamination.sql` | No round in mart has >20 qualifying rows |
-| `assert_match_rate.sql` | Each round's `mismatch` count ≤ 3 drivers |
+| `assert_all_rounds_have_results.sql` | Every round in `stg_jolpica__races` has ≥1 row in `fact_race_results` |
 | `assert_dim_sessions_coverage.sql` | Every round in `fact_qualifying` has a row in `dim_sessions` |
 | `assert_circuit_stats_populated.sql` | All circuits used in current season have non-NULL `length_km` and `corners` |
 | `assert_telemetry_completeness.sql` | Every `matched` driver in `mart_qualifying_summary` has ≥1 row in `mart_lap_telemetry` |
+| `assert_weather_coverage.sql` | Every race and qualifying session has ≥1 weather record in `stg_openf1__weather` |
+| `assert_pit_stops_present.sql` | Every race result with `laps > 0` has ≥1 pit stop record in `stg_jolpica__pit_stops` |
+| `assert_standings_every_round.sql` | Driver standings exist for every completed round in the current season |
+
+**Consistency — do values agree across sources?**
+
+| File | Rule |
+|---|---|
+| `assert_match_rate.sql` | Each round's `mismatch` count ≤ 3 drivers |
+| `assert_sector_times_sum_to_lap.sql` | `s1_ms + s2_ms + s3_ms` is within ±200 ms of `best_lap_duration` for all matched rows |
+| `assert_lap_count_consistent.sql` | OpenF1 lap count per driver per session is within ±2 of Jolpica lap count |
+| `assert_constructor_points_consistent.sql` | Constructor standings points ≥ sum of their two drivers' points for each round |
+| `assert_driver_in_dim.sql` | All `driver_id` values in `fact_race_results` exist in `dim_drivers` |
+| `assert_constructor_in_dim.sql` | All `constructor_id` values in `fact_race_results` exist in `dim_constructors` |
+
+**Uniqueness — no duplicate rows where none should exist**
+
+| File | Rule |
+|---|---|
+| `assert_no_sprint_contamination.sql` | No round in mart has >20 qualifying rows |
+| `assert_qualifying_position_unique.sql` | No two drivers share the same qualifying position within a session |
+| `assert_race_position_unique.sql` | No two drivers share the same finishing position within a race |
+| `assert_no_duplicate_laps.sql` | No duplicate `(session_key, driver_number, lap_number)` in `stg_openf1__laps` |
+
+**Range and validity — are values physically plausible?**
+
+| File | Rule |
+|---|---|
+| `assert_lap_times_in_range.sql` | All lap times in `fact_laps` are between 60 s and 300 s (catches NULL-as-zero or data corruption) |
+| `assert_points_valid_range.sql` | Race points per driver are between 0 and 26; sprint points between 0 and 8 |
+| `assert_grid_position_valid.sql` | Grid positions are positive integers ≤ 20 |
+| `assert_stint_compound_valid.sql` | Tyre compounds in `stg_openf1__stints` are only `SOFT`, `MEDIUM`, `HARD`, `INTERMEDIATE`, or `WET` |
+| `assert_no_future_laps.sql` | No lap records have a timestamp after the current date (catches ingestion timestamp bugs) |
+
+**Referential integrity — cross-model FK checks**
+
+| File | Rule |
+|---|---|
+| `assert_telemetry_session_exists.sql` | All `session_key` values in `mart_lap_telemetry` exist in `dim_sessions` |
+| `assert_pit_lap_in_race.sql` | All pit stop `lap` values are ≤ the total race lap count for that round |
+| `assert_stint_laps_no_gap.sql` | Per driver per race, stints cover all laps without gaps or overlaps |
 
 ### Tier 3 — Source freshness (sources.yml)
 
@@ -201,11 +243,31 @@ Stored in `.env` (local) and Airflow Variables (production).
 | `dbt/models/staging/sources.yml` | Add freshness blocks to all three sources |
 | `dbt/models/marts/schema.yml` | Expand with Tier 1 schema tests |
 | `dbt/tests/assert_driver_count_per_session.sql` | New |
-| `dbt/tests/assert_no_sprint_contamination.sql` | New |
-| `dbt/tests/assert_match_rate.sql` | New |
+| `dbt/tests/assert_all_rounds_have_results.sql` | New |
 | `dbt/tests/assert_dim_sessions_coverage.sql` | New |
 | `dbt/tests/assert_circuit_stats_populated.sql` | New |
 | `dbt/tests/assert_telemetry_completeness.sql` | New |
+| `dbt/tests/assert_weather_coverage.sql` | New |
+| `dbt/tests/assert_pit_stops_present.sql` | New |
+| `dbt/tests/assert_standings_every_round.sql` | New |
+| `dbt/tests/assert_match_rate.sql` | New |
+| `dbt/tests/assert_sector_times_sum_to_lap.sql` | New |
+| `dbt/tests/assert_lap_count_consistent.sql` | New |
+| `dbt/tests/assert_constructor_points_consistent.sql` | New |
+| `dbt/tests/assert_driver_in_dim.sql` | New |
+| `dbt/tests/assert_constructor_in_dim.sql` | New |
+| `dbt/tests/assert_no_sprint_contamination.sql` | New |
+| `dbt/tests/assert_qualifying_position_unique.sql` | New |
+| `dbt/tests/assert_race_position_unique.sql` | New |
+| `dbt/tests/assert_no_duplicate_laps.sql` | New |
+| `dbt/tests/assert_lap_times_in_range.sql` | New |
+| `dbt/tests/assert_points_valid_range.sql` | New |
+| `dbt/tests/assert_grid_position_valid.sql` | New |
+| `dbt/tests/assert_stint_compound_valid.sql` | New |
+| `dbt/tests/assert_no_future_laps.sql` | New |
+| `dbt/tests/assert_telemetry_session_exists.sql` | New |
+| `dbt/tests/assert_pit_lap_in_race.sql` | New |
+| `dbt/tests/assert_stint_laps_no_gap.sql` | New |
 | `airflow/dags/dq_monitor.py` | New DAG |
 | `airflow/dags/dq_telegram.py` | Telegram helper module |
 | `docker-compose.yml` | Expose elementary report port |
