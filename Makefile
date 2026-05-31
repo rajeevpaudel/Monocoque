@@ -1,4 +1,4 @@
-.PHONY: up down migrate reset-data backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test lint test
+.PHONY: up down migrate reset-data backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test dbt-docs lint format test
 
 up:
 	docker-compose up -d
@@ -40,6 +40,10 @@ dbt-run:
 
 dbt-test:
 	cd dbt && dbt test --profiles-dir .
+
+dbt-docs:
+	cd dbt && dbt docs generate --profiles-dir .
+	cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json dbt/docs/
 
 lint:
 	ruff check ingestion/ airflow/
