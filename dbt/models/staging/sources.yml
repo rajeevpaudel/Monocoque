@@ -10,8 +10,20 @@ sources:
       - name: constructors
       - name: drivers
       - name: races
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 12, period: hour}
+          error_after: {count: 48, period: hour}
       - name: results
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 12, period: hour}
+          error_after: {count: 48, period: hour}
       - name: qualifying
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 12, period: hour}
+          error_after: {count: 48, period: hour}
       - name: sprint_results
       - name: lap_times
       - name: pit_stops
@@ -23,6 +35,10 @@ sources:
     schema: raw_openf1
     tables:
       - name: sessions
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 6, period: hour}
+          error_after: {count: 24, period: hour}
         columns:
           - name: session_type
             tests:
@@ -32,12 +48,20 @@ sources:
                              'Practice', 'Practice 1', 'Practice 2', 'Practice 3']
       - name: drivers
       - name: laps
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 6, period: hour}
+          error_after: {count: 24, period: hour}
       - name: pit
       - name: stints
       - name: intervals
       - name: weather
       - name: race_control
       - name: car_data
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 6, period: hour}
+          error_after: {count: 24, period: hour}
       - name: location
       - name: team_radio
 
@@ -52,3 +76,7 @@ sources:
     schema: raw_fastf1
     tables:
       - name: car_telemetry
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 6, period: hour}
+          error_after: {count: 24, period: hour}
