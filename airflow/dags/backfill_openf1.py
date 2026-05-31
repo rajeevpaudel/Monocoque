@@ -17,9 +17,9 @@ from airflow.models.param import Param
     catchup=False,
     tags=["openf1", "backfill"],
     params={
-        "start_year":      Param(2023, type="integer"),
-        "end_year":        Param(2025, type="integer"),
-        "skip_telemetry":  Param(False, type="boolean", description="Skip car_data/location"),
+        "start_year": Param(2023, type="integer"),
+        "end_year": Param(2025, type="integer"),
+        "skip_telemetry": Param(False, type="boolean", description="Skip car_data/location"),
     },
     default_args={
         "retries": 3,
@@ -31,19 +31,23 @@ def backfill_openf1():
     @task
     def ingest_year(year: int, skip_telemetry: bool):
         from ingestion.openf1.backfill import ingest_year as _ingest
+
         _ingest(year, skip_telemetry=skip_telemetry)
 
     @task
     def generate_years(start: int, end: int) -> list[int]:
         return list(range(start, end + 1))
 
-    years = generate_years(
+    generate_years(
         start="{{ params.start_year }}",
         end="{{ params.end_year }}",
     )
-    ingest_year.expand_kwargs([
-        {"year": y, "skip_telemetry": "{{ params.skip_telemetry }}"} for y in [2023]  # placeholder
-    ])
+    ingest_year.expand_kwargs(
+        [
+            {"year": y, "skip_telemetry": "{{ params.skip_telemetry }}"}
+            for y in [2023]  # placeholder
+        ]
+    )
 
 
 backfill_openf1()

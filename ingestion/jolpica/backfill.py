@@ -7,7 +7,6 @@ Usage:
 """
 
 import argparse
-import sys
 
 import structlog
 
@@ -18,10 +17,10 @@ log = structlog.get_logger()
 
 # Reference tables ingested once (not per-season)
 REFERENCE_TABLES = [
-    ("raw_jolpica.seasons",      endpoints.get_seasons),
-    ("raw_jolpica.circuits",     endpoints.get_circuits),
+    ("raw_jolpica.seasons", endpoints.get_seasons),
+    ("raw_jolpica.circuits", endpoints.get_circuits),
     ("raw_jolpica.constructors", endpoints.get_constructors),
-    ("raw_jolpica.drivers",      endpoints.get_drivers),
+    ("raw_jolpica.drivers", endpoints.get_drivers),
 ]
 
 
@@ -107,8 +106,10 @@ def ingest_season(season: int):
 def main():
     parser = argparse.ArgumentParser(description="Jolpica historical backfill")
     parser.add_argument("--start", type=int, required=True, help="First season (e.g. 1950)")
-    parser.add_argument("--end",   type=int, required=True, help="Last season inclusive (e.g. 2022)")
-    parser.add_argument("--skip-reference", action="store_true", help="Skip circuits/drivers/etc tables")
+    parser.add_argument("--end", type=int, required=True, help="Last season inclusive (e.g. 2022)")
+    parser.add_argument(
+        "--skip-reference", action="store_true", help="Skip circuits/drivers/etc tables"
+    )
     args = parser.parse_args()
 
     if not args.skip_reference:

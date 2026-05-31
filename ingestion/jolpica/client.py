@@ -1,7 +1,8 @@
 """Jolpica API client with limit/offset pagination over the MRData envelope."""
 
 import json
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 from ingestion.shared.http import get_json
 

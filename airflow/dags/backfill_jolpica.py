@@ -19,7 +19,7 @@ from airflow.models.param import Param
     tags=["jolpica", "backfill"],
     params={
         "start_season": Param(1950, type="integer", description="First season to load"),
-        "end_season":   Param(2022, type="integer", description="Last season to load (inclusive)"),
+        "end_season": Param(2022, type="integer", description="Last season to load (inclusive)"),
         "skip_reference": Param(False, type="boolean", description="Skip circuits/drivers/etc"),
     },
     default_args={
@@ -37,10 +37,10 @@ def backfill_jolpica():
         from ingestion.shared import clickhouse as ch
 
         for fn, table in [
-            (endpoints.get_seasons,      "raw_jolpica.seasons"),
-            (endpoints.get_circuits,     "raw_jolpica.circuits"),
+            (endpoints.get_seasons, "raw_jolpica.seasons"),
+            (endpoints.get_circuits, "raw_jolpica.circuits"),
             (endpoints.get_constructors, "raw_jolpica.constructors"),
-            (endpoints.get_drivers,      "raw_jolpica.drivers"),
+            (endpoints.get_drivers, "raw_jolpica.drivers"),
         ]:
             rows = fn()
             ch.insert_rows(table, [_model_to_dict(r) for r in rows])
@@ -48,6 +48,7 @@ def backfill_jolpica():
     @task
     def ingest_season(season: int):
         from ingestion.jolpica.backfill import ingest_season as _ingest
+
         _ingest(season)
 
     @task

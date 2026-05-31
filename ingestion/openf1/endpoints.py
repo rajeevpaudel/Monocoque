@@ -4,9 +4,16 @@ from datetime import datetime, timedelta
 
 from ingestion.openf1.client import TooLargeError, get, raw
 from ingestion.shared.models import (
-    OpenF1Session, OpenF1Driver, OpenF1Lap, OpenF1Pit, OpenF1Stint,
-    OpenF1Interval, OpenF1Weather, OpenF1RaceControl, OpenF1CarData,
+    OpenF1CarData,
+    OpenF1Driver,
+    OpenF1Interval,
+    OpenF1Lap,
     OpenF1Location,
+    OpenF1Pit,
+    OpenF1RaceControl,
+    OpenF1Session,
+    OpenF1Stint,
+    OpenF1Weather,
 )
 
 _CHUNK_MINUTES = 30
@@ -22,6 +29,7 @@ def _session_dates(session_key: int) -> tuple[str, str]:
 
 def _time_chunks(date_start: str, date_end: str):
     """Yield (start_iso, end_iso) pairs in 30-min windows covering the range."""
+
     def _parse(s: str) -> datetime:
         return datetime.fromisoformat(s.rstrip("Z").split("+")[0])
 
@@ -46,25 +54,27 @@ def get_sessions(year: int) -> list[OpenF1Session]:
     records = get("sessions", {"year": year})
     out = []
     for r in records:
-        out.append(OpenF1Session(
-            session_key=r["session_key"],
-            session_name=r["session_name"],
-            session_type=r["session_type"],
-            status=r.get("status", ""),
-            gmt_offset=r.get("gmt_offset", ""),
-            path=r.get("path", ""),
-            date_start=r["date_start"],
-            date_end=r.get("date_end"),
-            year=r["year"],
-            circuit_key=r["circuit_key"],
-            circuit_short_name=r["circuit_short_name"],
-            country_key=r["country_key"],
-            country_code=r["country_code"],
-            country_name=r["country_name"],
-            location=r["location"],
-            meeting_key=r["meeting_key"],
-            _raw_json=raw(r),
-        ))
+        out.append(
+            OpenF1Session(
+                session_key=r["session_key"],
+                session_name=r["session_name"],
+                session_type=r["session_type"],
+                status=r.get("status", ""),
+                gmt_offset=r.get("gmt_offset", ""),
+                path=r.get("path", ""),
+                date_start=r["date_start"],
+                date_end=r.get("date_end"),
+                year=r["year"],
+                circuit_key=r["circuit_key"],
+                circuit_short_name=r["circuit_short_name"],
+                country_key=r["country_key"],
+                country_code=r["country_code"],
+                country_name=r["country_name"],
+                location=r["location"],
+                meeting_key=r["meeting_key"],
+                _raw_json=raw(r),
+            )
+        )
     return out
 
 
@@ -72,20 +82,22 @@ def get_drivers(session_key: int) -> list[OpenF1Driver]:
     records = get("drivers", {"session_key": session_key})
     out = []
     for r in records:
-        out.append(OpenF1Driver(
-            session_key=r["session_key"],
-            driver_number=r["driver_number"],
-            broadcast_name=r.get("broadcast_name") or "",
-            full_name=r.get("full_name") or "",
-            name_acronym=r.get("name_acronym") or "",
-            team_name=r.get("team_name") or "",
-            team_colour=r.get("team_colour") or "",
-            first_name=r.get("first_name") or "",
-            last_name=r.get("last_name") or "",
-            headshot_url=r.get("headshot_url"),
-            country_code=r.get("country_code"),
-            _raw_json=raw(r),
-        ))
+        out.append(
+            OpenF1Driver(
+                session_key=r["session_key"],
+                driver_number=r["driver_number"],
+                broadcast_name=r.get("broadcast_name") or "",
+                full_name=r.get("full_name") or "",
+                name_acronym=r.get("name_acronym") or "",
+                team_name=r.get("team_name") or "",
+                team_colour=r.get("team_colour") or "",
+                first_name=r.get("first_name") or "",
+                last_name=r.get("last_name") or "",
+                headshot_url=r.get("headshot_url"),
+                country_code=r.get("country_code"),
+                _raw_json=raw(r),
+            )
+        )
     return out
 
 
@@ -95,24 +107,26 @@ def get_laps(session_key: int) -> list[OpenF1Lap]:
     for r in records:
         if not r.get("date_start"):
             continue  # row is unusable without a start timestamp
-        out.append(OpenF1Lap(
-            session_key=r["session_key"],
-            driver_number=r["driver_number"],
-            lap_number=r["lap_number"],
-            date_start=r["date_start"],
-            lap_duration=r.get("lap_duration"),
-            is_pit_out_lap=bool(r.get("is_pit_out_lap", False)),
-            duration_sector_1=r.get("duration_sector_1"),
-            duration_sector_2=r.get("duration_sector_2"),
-            duration_sector_3=r.get("duration_sector_3"),
-            i1_speed=r.get("i1_speed"),
-            i2_speed=r.get("i2_speed"),
-            st_speed=r.get("st_speed"),
-            segments_sector_1=[x for x in (r.get("segments_sector_1") or []) if x is not None],
-            segments_sector_2=[x for x in (r.get("segments_sector_2") or []) if x is not None],
-            segments_sector_3=[x for x in (r.get("segments_sector_3") or []) if x is not None],
-            _raw_json=raw(r),
-        ))
+        out.append(
+            OpenF1Lap(
+                session_key=r["session_key"],
+                driver_number=r["driver_number"],
+                lap_number=r["lap_number"],
+                date_start=r["date_start"],
+                lap_duration=r.get("lap_duration"),
+                is_pit_out_lap=bool(r.get("is_pit_out_lap", False)),
+                duration_sector_1=r.get("duration_sector_1"),
+                duration_sector_2=r.get("duration_sector_2"),
+                duration_sector_3=r.get("duration_sector_3"),
+                i1_speed=r.get("i1_speed"),
+                i2_speed=r.get("i2_speed"),
+                st_speed=r.get("st_speed"),
+                segments_sector_1=[x for x in (r.get("segments_sector_1") or []) if x is not None],
+                segments_sector_2=[x for x in (r.get("segments_sector_2") or []) if x is not None],
+                segments_sector_3=[x for x in (r.get("segments_sector_3") or []) if x is not None],
+                _raw_json=raw(r),
+            )
+        )
     return out
 
 
@@ -137,16 +151,18 @@ def get_stints(session_key: int) -> list[OpenF1Stint]:
     for r in records:
         if r.get("lap_start") is None:
             continue  # row is unusable without a starting lap
-        out.append(OpenF1Stint(
-            session_key=r["session_key"],
-            driver_number=r["driver_number"],
-            stint_number=r["stint_number"],
-            lap_start=r["lap_start"],
-            lap_end=r.get("lap_end"),
-            compound=r.get("compound", ""),
-            tyre_age_at_start=r.get("tyre_age_at_start", 0),
-            _raw_json=raw(r),
-        ))
+        out.append(
+            OpenF1Stint(
+                session_key=r["session_key"],
+                driver_number=r["driver_number"],
+                stint_number=r["stint_number"],
+                lap_start=r["lap_start"],
+                lap_end=r.get("lap_end"),
+                compound=r.get("compound", ""),
+                tyre_age_at_start=r.get("tyre_age_at_start", 0),
+                _raw_json=raw(r),
+            )
+        )
     return out
 
 
@@ -217,18 +233,20 @@ def get_car_data(session_key: int) -> list[OpenF1CarData]:
                 date_start, date_end = _session_dates(session_key)
             records = _fetch_chunked("car_data", params, date_start, date_end)
         for r in records:
-            out.append(OpenF1CarData(
-                session_key=r["session_key"],
-                driver_number=r["driver_number"],
-                date=r["date"],
-                rpm=r.get("rpm", 0),
-                speed=r.get("speed", 0),
-                n_gear=r.get("n_gear", 0),
-                throttle=r.get("throttle", 0),
-                brake=r.get("brake", 0),
-                drs=r.get("drs", 0),
-                _raw_json=raw(r),
-            ))
+            out.append(
+                OpenF1CarData(
+                    session_key=r["session_key"],
+                    driver_number=r["driver_number"],
+                    date=r["date"],
+                    rpm=r.get("rpm", 0),
+                    speed=r.get("speed", 0),
+                    n_gear=r.get("n_gear", 0),
+                    throttle=r.get("throttle", 0),
+                    brake=r.get("brake", 0),
+                    drs=r.get("drs", 0),
+                    _raw_json=raw(r),
+                )
+            )
     return out
 
 
@@ -246,13 +264,15 @@ def get_location(session_key: int) -> list[OpenF1Location]:
                 date_start, date_end = _session_dates(session_key)
             records = _fetch_chunked("location", params, date_start, date_end)
         for r in records:
-            out.append(OpenF1Location(
-                session_key=r["session_key"],
-                driver_number=r["driver_number"],
-                date=r["date"],
-                x=r.get("x", 0),
-                y=r.get("y", 0),
-                z=r.get("z", 0),
-                _raw_json=raw(r),
-            ))
+            out.append(
+                OpenF1Location(
+                    session_key=r["session_key"],
+                    driver_number=r["driver_number"],
+                    date=r["date"],
+                    x=r.get("x", 0),
+                    y=r.get("y", 0),
+                    z=r.get("z", 0),
+                    _raw_json=raw(r),
+                )
+            )
     return out

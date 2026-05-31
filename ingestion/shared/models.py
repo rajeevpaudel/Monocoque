@@ -1,9 +1,8 @@
 """Pydantic v2 base models for raw ingestion records."""
 
-from datetime import date, datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class RawRecord(BaseModel):
@@ -12,13 +11,14 @@ class RawRecord(BaseModel):
     model_config = {"populate_by_name": True}
 
     ingested_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
+        default_factory=lambda: datetime.now(UTC),
         alias="_ingested_at",
     )
     raw_json: str = Field(alias="_raw_json")
 
 
 # ── Jolpica ──────────────────────────────────────────────────────────────────
+
 
 class JolpicaSeason(RawRecord):
     year: int
@@ -34,6 +34,8 @@ class JolpicaCircuit(RawRecord):
     lat: float
     lng: float
     alt: float | None = None
+    length_km: float | None = None
+    corners: int | None = None
 
 
 class JolpicaDriver(RawRecord):
@@ -151,6 +153,7 @@ class JolpicaConstructorStanding(RawRecord):
 
 
 # ── OpenF1 ───────────────────────────────────────────────────────────────────
+
 
 class OpenF1Session(RawRecord):
     session_key: int

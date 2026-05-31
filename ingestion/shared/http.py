@@ -1,13 +1,19 @@
 """Shared HTTP client with retry, rate limiting, and structured logging."""
 
+import logging
 import random
 import time
 from typing import Any
 
 import httpx
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential, before_sleep_log, retry_if_exception
-import logging
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 log = structlog.get_logger()
 

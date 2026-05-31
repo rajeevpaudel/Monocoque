@@ -2,7 +2,6 @@
 dbt run DAG — triggered by ingest DAGs. Runs all layers in order with tests.
 """
 
-import os
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
@@ -25,6 +24,7 @@ def dbt_run():
 
     def _run(cmd: str):
         import subprocess
+
         result = subprocess.run(
             f"cd {DBT_DIR} && dbt {cmd} --profiles-dir {DBT_PROFILES_DIR}",
             shell=True,

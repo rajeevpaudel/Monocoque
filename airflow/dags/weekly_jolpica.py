@@ -24,8 +24,9 @@ def weekly_jolpica():
     @task
     def check_race_weekend() -> dict:
         """Return (season, round) of the last completed race or skip if no new race."""
-        import httpx
         from datetime import date
+
+        import httpx
 
         resp = httpx.get(
             "https://api.jolpi.ca/ergast/f1/current.json",
@@ -47,6 +48,7 @@ def weekly_jolpica():
     @task
     def ingest_results(race_info: dict):
         from ingestion.jolpica.incremental import ingest_round
+
         ingest_round(race_info["season"], race_info["round"])
 
     trigger_dbt = TriggerDagRunOperator(

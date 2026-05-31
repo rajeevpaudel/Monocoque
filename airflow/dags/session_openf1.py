@@ -25,6 +25,7 @@ def session_openf1():
     @task
     def ingest_session(session_key: int):
         from ingestion.openf1.backfill import ingest_session as _ingest
+
         _ingest(session_key, skip_telemetry=False)
 
     trigger_dbt = TriggerDagRunOperator(

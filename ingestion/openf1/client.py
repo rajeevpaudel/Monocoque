@@ -81,14 +81,26 @@ def get(endpoint: str, params: dict[str, Any] | None = None) -> list[dict]:
             last_exc = e
             if attempt < _MAX_RETRIES - 1:
                 # 429 needs a much longer back-off than other errors
-                wait = 10 if e.response.status_code == 429 else 2 ** attempt
-                log.warning("openf1 request failed, retrying", url=url, attempt=attempt + 1, status=e.response.status_code, wait=wait)
+                wait = 10 if e.response.status_code == 429 else 2**attempt
+                log.warning(
+                    "openf1 request failed, retrying",
+                    url=url,
+                    attempt=attempt + 1,
+                    status=e.response.status_code,
+                    wait=wait,
+                )
                 time.sleep(wait)
         except Exception as e:
             last_exc = e
             if attempt < _MAX_RETRIES - 1:
-                wait = 2 ** attempt
-                log.warning("openf1 request failed, retrying", url=url, attempt=attempt + 1, wait=wait, error=str(e))
+                wait = 2**attempt
+                log.warning(
+                    "openf1 request failed, retrying",
+                    url=url,
+                    attempt=attempt + 1,
+                    wait=wait,
+                    error=str(e),
+                )
                 time.sleep(wait)
 
     raise last_exc

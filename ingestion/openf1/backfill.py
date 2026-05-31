@@ -12,11 +12,12 @@ and skipped on subsequent runs. Delete that file to force a full re-ingest.
 import argparse
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
-from ingestion.openf1 import endpoints, driver_map as dm
+from ingestion.openf1 import driver_map as dm
+from ingestion.openf1 import endpoints
 from ingestion.shared import clickhouse as ch
 
 log = structlog.get_logger()
@@ -25,6 +26,7 @@ _CHECKPOINT_FILE = os.path.join(os.path.dirname(__file__), ".backfill_checkpoint
 
 
 # ── Checkpoint helpers ────────────────────────────────────────────────────────
+
 
 def _load_checkpoint() -> set[int]:
     if os.path.exists(_CHECKPOINT_FILE):
@@ -40,6 +42,7 @@ def _save_checkpoint(completed: set[int]) -> None:
 
 # ── Core ingestion ────────────────────────────────────────────────────────────
 
+
 def _model_to_dict(m) -> dict:
     d = m.model_dump(by_alias=False)
     d["_ingested_at"] = d.pop("ingested_at")
@@ -53,11 +56,11 @@ def ingest_session(session_key: int, skip_telemetry: bool = False) -> bool:
     failed = False
 
     for fn, table in [
-        (lambda: endpoints.get_laps(session_key),         "raw_openf1.laps"),
-        (lambda: endpoints.get_pit(session_key),          "raw_openf1.pit"),
-        (lambda: endpoints.get_stints(session_key),       "raw_openf1.stints"),
-        (lambda: endpoints.get_intervals(session_key),    "raw_openf1.intervals"),
-        (lambda: endpoints.get_weather(session_key),      "raw_openf1.weather"),
+        (lambda: endpoints.get_laps(session_key), "raw_openf1.laps"),
+        (lambda: endpoints.get_pit(session_key), "raw_openf1.pit"),
+        (lambda: endpoints.get_stints(session_key), "raw_openf1.stints"),
+        (lambda: endpoints.get_intervals(session_key), "raw_openf1.intervals"),
+        (lambda: endpoints.get_weather(session_key), "raw_openf1.weather"),
         (lambda: endpoints.get_race_control(session_key), "raw_openf1.race_control"),
     ]:
         try:
@@ -96,10 +99,11 @@ def ingest_year(year: int, skip_telemetry: bool = False, completed: set[int] = N
     ylog.info("fetching sessions")
 
     sessions = endpoints.get_sessions(year)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     complete = [
-        s for s in sessions
+        s
+        for s in sessions
         if s.date_end and datetime.fromisoformat(s.date_end.replace("Z", "+00:00")) < now
     ]
 
@@ -137,11 +141,15 @@ def ingest_year(year: int, skip_telemetry: bool = False, completed: set[int] = N
 def main():
     parser = argparse.ArgumentParser(description="OpenF1 backfill (2023-present)")
     parser.add_argument("--start", type=int, required=True)
-    parser.add_argument("--end",   type=int, required=True)
-    parser.add_argument("--skip-telemetry", action="store_true",
-                        help="Skip car_data and location (saves time/memory)")
-    parser.add_argument("--reset", action="store_true",
-                        help="Ignore checkpoint and re-ingest everything")
+    parser.add_argument("--end", type=int, required=True)
+    parser.add_argument(
+        "--skip-telemetry",
+        action="store_true",
+        help="Skip car_data and location (saves time/memory)",
+    )
+    parser.add_argument(
+        "--reset", action="store_true", help="Ignore checkpoint and re-ingest everything"
+    )
     args = parser.parse_args()
 
     completed = set() if args.reset else _load_checkpoint()
