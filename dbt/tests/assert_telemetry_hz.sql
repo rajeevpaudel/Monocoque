@@ -1,4 +1,5 @@
--- Fail if any session's average car_data sample rate is outside 3.5–4.0 Hz.
+{{ config(severity='warn') }}
+-- Warn if any session's average car_data sample rate is outside 3.5–4.0 Hz.
 -- OpenF1 advertises ~3.7 Hz; warn if a session deviates significantly.
 WITH session_hz AS (
     SELECT

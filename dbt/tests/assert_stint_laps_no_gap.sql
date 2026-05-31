@@ -1,4 +1,3 @@
-{{ config(severity='warn') }}
 -- Fail if any driver's stints don't continuously cover all laps (gap or overlap detected).
 -- A gap: sum of covered laps < range from first to last lap.
 -- An overlap: sum of covered laps > range from first to last lap.
