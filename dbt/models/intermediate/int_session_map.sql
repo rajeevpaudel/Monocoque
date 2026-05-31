@@ -11,7 +11,7 @@ WITH race_sessions AS (
         year,
         toDate(date_start) AS race_date_utc
     FROM {{ ref('stg_openf1__sessions') }}
-    WHERE session_type = 'Race'
+    WHERE session_type = 'Race' AND session_name = 'Race'
 ),
 meeting_rounds AS (
     -- Map each OpenF1 meeting to its Jolpica round. The OR in WHERE (not JOIN ON) is valid in
@@ -26,13 +26,13 @@ meeting_rounds AS (
 SELECT
     s.session_key,
     s.year                          AS season,
-    mr.round,
-    s.session_name,
-    s.session_type,
-    s.date_start,
-    s.date_end,
-    s.circuit_short_name,
-    s.country_name
+    mr.round                        AS round,
+    s.session_name                  AS session_name,
+    s.session_type                  AS session_type,
+    s.date_start                    AS date_start,
+    s.date_end                      AS date_end,
+    s.circuit_short_name            AS circuit_short_name,
+    s.country_name                  AS country_name
 FROM {{ ref('stg_openf1__sessions') }}      s
 LEFT JOIN meeting_rounds                    mr
     ON  mr.meeting_key = s.meeting_key

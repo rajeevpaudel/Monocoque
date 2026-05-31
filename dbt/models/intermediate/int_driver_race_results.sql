@@ -29,6 +29,7 @@ LEFT JOIN {{ ref('int_session_map') }}          sm
     ON  sm.season       = r.season
     AND sm.round        = r.round
     AND sm.session_type = 'Race'
+    AND sm.session_name = 'Race'
 LEFT JOIN {{ ref('stg_openf1__laps') }}         l
     ON  l.session_key   = sm.session_key
     AND l.driver_number = m.openf1_driver_number
