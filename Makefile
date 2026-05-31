@@ -43,6 +43,11 @@ dbt-test:
 
 lint:
 	ruff check ingestion/ airflow/
+	ruff format --check ingestion/ airflow/
+
+format:
+	ruff check --fix ingestion/ airflow/
+	ruff format ingestion/ airflow/
 
 test:
 	pytest tests/
