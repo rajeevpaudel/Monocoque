@@ -31,6 +31,7 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.3
     ports:
+      - "9000:9000"
       - "8123:8123"
     volumes:
       - clickhouse-data:/var/lib/clickhouse
@@ -110,6 +111,28 @@ services:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+
+  dbt-docs:
+    image: python:3.11-slim
+    working_dir: /app/dbt
+    volumes:
+      - ./dbt:/app/dbt
+    ports:
+      - "8082:8082"
+    command: >
+      sh -c "pip install dbt-clickhouse elementary-data[clickhouse] --quiet &&
+             dbt docs generate --profiles-dir /app/dbt &&
+             edr report --profiles-dir /app/dbt &&
+             python -m http.server 8082 --directory /app/dbt/target"
+    environment:
+      - CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+    depends_on:
+      - clickhouse
+    restart: "no"
+    profiles:
+      - docs
 
 volumes:
   clickhouse-data:
