@@ -54,8 +54,16 @@ sources:
           error_after: {count: 24, period: hour}
       - name: pit
       - name: stints
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 6, period: hour}
+          error_after: {count: 24, period: hour}
       - name: intervals
       - name: weather
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 6, period: hour}
+          error_after: {count: 24, period: hour}
       - name: race_control
       - name: car_data
         loaded_at_field: _ingested_at
