@@ -11,7 +11,6 @@ import subprocess
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 
 DBT_DIR = "/opt/airflow/dbt"
@@ -96,7 +95,7 @@ def dq_monitor():
         failures = [dict(r) for r in rows]
 
         if not failures:
-            from airflow.dags.dq_telegram import send_daily_ok
+            from dq_telegram import send_daily_ok
             stats_rows = client.query(
                 """
                 SELECT
@@ -110,23 +109,23 @@ def dq_monitor():
             send_daily_ok(stats, bot_token=bot_token, chat_id=chat_id)
             return
 
-        from airflow.dags.dq_telegram import send_alert
+        from dq_telegram import send_alert
         send_alert(failures, bot_token=bot_token, chat_id=chat_id)
+
+        from airflow.api.common.trigger_dag import trigger_dag as _trigger_dag
 
         fixable, _ = classify_failures(failures)
         for item in fixable:
             if item["action"] == "reingest_session":
-                TriggerDagRunOperator(
-                    task_id=f"reingest_session_{item['session_key']}",
-                    trigger_dag_id="session_openf1",
+                _trigger_dag(
+                    dag_id="session_openf1",
                     conf={"session_key": item["session_key"]},
-                ).execute(context={})
+                )
             elif item["action"] == "reingest_jolpica":
-                TriggerDagRunOperator(
-                    task_id=f"reingest_jolpica_{item['season']}_{item.get('round', 0)}",
-                    trigger_dag_id="backfill_jolpica",
+                _trigger_dag(
+                    dag_id="backfill_jolpica",
                     conf={"start_season": item["season"], "end_season": item["season"]},
-                ).execute(context={})
+                )
 
     freshness = run_dbt_freshness()
     tests = run_dbt_tests()
