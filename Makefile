@@ -42,7 +42,7 @@ dbt-test:
 	cd dbt && dbt test --profiles-dir .
 
 dbt-docs:
-	cd dbt && dbt docs generate --profiles-dir .
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt docs generate --profiles-dir .
 	cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json dbt/docs/
 
 lint:
