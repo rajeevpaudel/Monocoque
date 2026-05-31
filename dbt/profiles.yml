@@ -9,3 +9,11 @@ f1_warehouse:
       password: "{{ env_var('CLICKHOUSE_PASSWORD', '') }}"
       schema: f1
       secure: false
+    elementary:
+      type: clickhouse
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: 8123
+      user: "{{ env_var('CLICKHOUSE_USER', 'default') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', '') }}"
+      database: elementary
+      schema: elementary
