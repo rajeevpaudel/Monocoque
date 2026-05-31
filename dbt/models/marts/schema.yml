@@ -50,6 +50,12 @@ models:
       - name: round
         tests:
           - not_null
+    tests:
+      - elementary.volume_anomalies:
+          time_bucket:
+            period: day
+            count: 7
+          anomaly_direction: drop
 
   - name: fact_race_results
     columns:
@@ -114,6 +120,9 @@ models:
           - not_null
 
   - name: mart_lap_telemetry
+    meta:
+      elementary:
+        timestamp_column: date
     columns:
       - name: session_key
         tests:
@@ -124,8 +133,16 @@ models:
       - name: lap_number
         tests:
           - not_null
+    tests:
+      - elementary.volume_anomalies:
+          time_bucket:
+            period: day
+            count: 1
 
   - name: mart_qualifying_summary
+    meta:
+      elementary:
+        timestamp_column: qualifying_date
     columns:
       - name: driver_id
         tests:
@@ -141,3 +158,12 @@ models:
           - accepted_values:
               arguments:
                 values: ['matched', 'jolpica_only', 'mismatch']
+          - elementary.column_anomalies:
+              column_anomalies:
+                - null_count
+                - null_percent
+    tests:
+      - elementary.volume_anomalies:
+          time_bucket:
+            period: day
+            count: 1
