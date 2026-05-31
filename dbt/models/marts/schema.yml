@@ -14,6 +14,12 @@ models:
         tests:
           - not_null
           - unique
+      - name: length_km
+        tests:
+          - not_null
+      - name: corners
+        tests:
+          - not_null
 
   - name: dim_constructors
     columns:
@@ -21,6 +27,29 @@ models:
         tests:
           - not_null
           - unique
+
+  - name: dim_sessions
+    columns:
+      - name: session_key
+        tests:
+          - not_null
+          - unique
+      - name: circuit_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_circuits')
+                field: circuit_id
+      - name: race_name
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
 
   - name: fact_race_results
     columns:
@@ -44,16 +73,31 @@ models:
       - name: round
         tests:
           - not_null
+      - name: points
+        tests:
+          - not_null
 
   - name: fact_qualifying
     columns:
       - name: driver_id
         tests:
           - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
 
   - name: fact_sprint_results
     columns:
       - name: driver_id
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: round
         tests:
           - not_null
 
@@ -65,13 +109,9 @@ models:
       - name: lap_number
         tests:
           - not_null
-
-  - name: dim_sessions
-    columns:
-      - name: session_key
+      - name: lap_time_ms
         tests:
           - not_null
-          - unique
 
   - name: mart_lap_telemetry
     columns:
@@ -96,4 +136,8 @@ models:
       - name: round
         tests:
           - not_null
-
+      - name: best_source_match
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['matched', 'jolpica_only', 'mismatch']
