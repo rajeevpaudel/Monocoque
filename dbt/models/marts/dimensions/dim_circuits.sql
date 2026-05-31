@@ -13,5 +13,7 @@ SELECT
     latitude,
     longitude,
     altitude_m,
-    url
+    url,
+    length_km,
+    corners
 FROM {{ ref('stg_jolpica__circuits') }}

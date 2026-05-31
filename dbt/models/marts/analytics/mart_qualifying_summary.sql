@@ -17,11 +17,15 @@ SELECT
     fq.q2                   AS q2,
     fq.q3                   AS q3,
     COALESCE(fq.q3, fq.q2, fq.q1) AS best_time,
-    -- OpenF1 best lap (2023+ only)
+    -- OpenF1 best lap (2023+ only; matched to Jolpica time within ±50 ms)
     fq.session_key          AS session_key,
     fq.openf1_driver_number AS openf1_driver_number,
     fq.best_lap_number      AS best_lap_number,
     fq.best_lap_duration    AS best_lap_duration,
+    -- Source-agreement diagnostics
+    fq.jolpica_best_time_ms AS jolpica_best_time_ms,
+    fq.openf1_best_time_ms  AS openf1_best_time_ms,
+    fq.best_source_match    AS best_source_match,
     fq.best_s1              AS best_s1,
     fq.best_s2              AS best_s2,
     fq.best_s3              AS best_s3,
@@ -50,7 +54,19 @@ LEFT JOIN {{ ref('dim_sessions') }}             ds
     ON  ds.session_key = fq.session_key
 LEFT JOIN {{ ref('dim_drivers') }}              d
     ON  d.driver_id = fq.driver_id
-LEFT JOIN {{ ref('stg_openf1__drivers') }}      od
+LEFT JOIN (
+    -- raw_openf1.drivers can have duplicate rows per (session_key, driver_number)
+    -- due to repeated ingestion; deduplicate here before joining.
+    SELECT
+        session_key,
+        driver_number,
+        any(name_acronym)  AS name_acronym,
+        any(team_name)     AS team_name,
+        any(team_colour)   AS team_colour,
+        any(headshot_url)  AS headshot_url
+    FROM {{ ref('stg_openf1__drivers') }}
+    GROUP BY session_key, driver_number
+)                                               od
     ON  od.session_key   = fq.session_key
     AND od.driver_number = fq.openf1_driver_number
 LEFT JOIN {{ ref('dim_constructors') }}         c

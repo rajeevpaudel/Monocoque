@@ -13,12 +13,14 @@ _CACHE_DIR = os.environ.get("FASTF1_CACHE_DIR", "/tmp/fastf1_cache")
 os.makedirs(_CACHE_DIR, exist_ok=True)
 fastf1.Cache.enable_cache(_CACHE_DIR)
 
-_EMPTY_SCHEMA = pa.schema([
-    pa.field("session_key",   pa.int32()),
-    pa.field("driver_number", pa.uint8()),
-    pa.field("date",          pa.timestamp("ms", tz="UTC")),
-    pa.field("distance_m",    pa.float32()),
-])
+_EMPTY_SCHEMA = pa.schema(
+    [
+        pa.field("session_key", pa.int32()),
+        pa.field("driver_number", pa.uint8()),
+        pa.field("date", pa.timestamp("ms", tz="UTC")),
+        pa.field("distance_m", pa.float32()),
+    ]
+)
 
 
 def _process_lap_telemetry(

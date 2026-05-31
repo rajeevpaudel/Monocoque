@@ -30,10 +30,10 @@ IDENTIFIER_TO_SESSION_TYPES: dict[str, list[str]] = {
     "FP1": ["Practice 1", "Practice"],
     "FP2": ["Practice 2"],
     "FP3": ["Practice 3"],
-    "Q":   ["Qualifying"],
-    "SQ":  ["Sprint Qualifying", "Sprint Shootout"],
-    "S":   ["Sprint"],
-    "R":   ["Race"],
+    "Q": ["Qualifying"],
+    "SQ": ["Sprint Qualifying", "Sprint Shootout"],
+    "S": ["Sprint"],
+    "R": ["Race"],
 }
 
 
@@ -137,9 +137,10 @@ def ingest_year(year: int, completed: set[str]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="FastF1 distance backfill (2023-present)")
     parser.add_argument("--start", type=int, required=True)
-    parser.add_argument("--end",   type=int, required=True)
-    parser.add_argument("--reset", action="store_true",
-                        help="Ignore checkpoint and re-ingest everything")
+    parser.add_argument("--end", type=int, required=True)
+    parser.add_argument(
+        "--reset", action="store_true", help="Ignore checkpoint and re-ingest everything"
+    )
     args = parser.parse_args()
 
     completed: set[str] = set()

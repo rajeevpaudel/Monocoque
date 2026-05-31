@@ -10,12 +10,11 @@ Usage:
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
 from ingestion.jolpica.client import paginate_all
-from ingestion.openf1 import endpoints
 from ingestion.shared import clickhouse as ch
 
 log = structlog.get_logger()
@@ -60,7 +59,7 @@ def build_driver_map(year: int):
             "jolpica_driver_id": driver_id,
             "openf1_driver_number": number,
             "season": year,
-            "updated_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(UTC),
         }
         for number, driver_id in number_map.items()
     ]
