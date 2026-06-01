@@ -12,6 +12,7 @@ import structlog
 
 from ingestion.jolpica import endpoints
 from ingestion.shared import clickhouse as ch
+from ingestion.shared import ingestion_log as log_util
 
 log = structlog.get_logger()
 
@@ -41,62 +42,61 @@ def ingest_reference_tables():
         log.info("done", table=table, count=len(rows))
 
 
-def ingest_season(season: int):
+_SEASON_TABLES = [
+    "raw_jolpica.races",
+    "raw_jolpica.results",
+    "raw_jolpica.qualifying",
+    "raw_jolpica.sprint_results",
+    "raw_jolpica.lap_times",
+    "raw_jolpica.pit_stops",
+    "raw_jolpica.driver_standings",
+    "raw_jolpica.constructor_standings",
+]
+
+
+def ingest_season(season: int) -> None:
     slog = log.bind(season=season)
     slog.info("starting season")
 
     races = endpoints.get_races(season)
-    ch.insert_rows("raw_jolpica.races", [_model_to_dict(r) for r in races])
-    slog.info("races", count=len(races))
-
     if not races:
         slog.info("no races found, skipping")
         return
 
+    ch.insert_rows("raw_jolpica.races", [_model_to_dict(r) for r in races])
+    slog.info("races stored", count=len(races))
+
+    _ROUND_TABLES = [
+        ("raw_jolpica.results",               lambda rnd: endpoints.get_results(season, rnd)),
+        ("raw_jolpica.qualifying",            lambda rnd: endpoints.get_qualifying(season, rnd)),
+        ("raw_jolpica.sprint_results",        lambda rnd: endpoints.get_sprint(season, rnd)),
+        ("raw_jolpica.lap_times",             lambda rnd: endpoints.get_laps(season, rnd)),
+        ("raw_jolpica.pit_stops",             lambda rnd: endpoints.get_pit_stops(season, rnd)),
+        ("raw_jolpica.driver_standings",      lambda rnd: endpoints.get_driver_standings(season, rnd)),
+        ("raw_jolpica.constructor_standings", lambda rnd: endpoints.get_constructor_standings(season, rnd)),
+    ]
+
     for race in races:
         rnd = race.round
+        entity_key = f"{season}-{rnd}"
         rlog = slog.bind(round=rnd)
 
-        try:
-            rows = endpoints.get_results(season, rnd)
-            ch.insert_rows("raw_jolpica.results", [_model_to_dict(r) for r in rows])
-        except Exception as e:
-            rlog.warning("results failed", error=str(e))
+        for table, fetch_fn in _ROUND_TABLES:
+            if not log_util.needs_ingestion(log_util.SOURCE_JOLPICA, entity_key, table):
+                rlog.debug("skipping — already complete", table=table)
+                continue
 
-        try:
-            rows = endpoints.get_qualifying(season, rnd)
-            ch.insert_rows("raw_jolpica.qualifying", [_model_to_dict(r) for r in rows])
-        except Exception as e:
-            rlog.warning("qualifying failed", error=str(e))
-
-        try:
-            rows = endpoints.get_sprint(season, rnd)
-            if rows:
-                ch.insert_rows("raw_jolpica.sprint_results", [_model_to_dict(r) for r in rows])
-        except Exception as e:
-            rlog.warning("sprint failed", error=str(e))
-
-        try:
-            rows = endpoints.get_laps(season, rnd)
-            if rows:
-                ch.insert_rows("raw_jolpica.lap_times", [_model_to_dict(r) for r in rows])
-        except Exception as e:
-            rlog.warning("laps failed", error=str(e))
-
-        try:
-            rows = endpoints.get_pit_stops(season, rnd)
-            if rows:
-                ch.insert_rows("raw_jolpica.pit_stops", [_model_to_dict(r) for r in rows])
-        except Exception as e:
-            rlog.warning("pit stops failed", error=str(e))
-
-        try:
-            rows = endpoints.get_driver_standings(season, rnd)
-            ch.insert_rows("raw_jolpica.driver_standings", [_model_to_dict(r) for r in rows])
-            rows = endpoints.get_constructor_standings(season, rnd)
-            ch.insert_rows("raw_jolpica.constructor_standings", [_model_to_dict(r) for r in rows])
-        except Exception as e:
-            rlog.warning("standings failed", error=str(e))
+            ch.delete_rows(table, f"season = {season} AND round = {rnd}")
+            try:
+                rows = fetch_fn(rnd)
+                count = len(rows) if rows else 0
+                if rows:
+                    ch.insert_rows(table, [_model_to_dict(r) for r in rows])
+                log_util.record(log_util.SOURCE_JOLPICA, entity_key, table, count)
+                rlog.info("ingested", table=table, count=count)
+            except Exception as e:
+                log_util.record(log_util.SOURCE_JOLPICA, entity_key, table, 0, str(e))
+                rlog.warning("failed", table=table, error=str(e))
 
         rlog.info("round done")
 
