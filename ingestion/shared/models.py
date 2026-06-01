@@ -1,6 +1,6 @@
 """Pydantic v2 base models for raw ingestion records."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -11,7 +11,7 @@ class RawRecord(BaseModel):
     model_config = {"populate_by_name": True}
 
     ingested_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC),
+        default_factory=lambda: datetime.now(timezone.utc),
         alias="_ingested_at",
     )
     raw_json: str = Field(alias="_raw_json")

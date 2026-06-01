@@ -5,39 +5,21 @@ Usage:
     python -m ingestion.openf1.backfill --start 2023 --end 2025
     python -m ingestion.openf1.backfill --start 2023 --end 2023 --skip-telemetry
 
-Re-running is safe: completed sessions are checkpointed in .backfill_checkpoint.json
-and skipped on subsequent runs. Delete that file to force a full re-ingest.
+Re-running is safe: completed tables are tracked in raw_meta.ingestion_log
+and skipped on subsequent runs.
 """
 
 import argparse
-import json
-import os
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 
 from ingestion.openf1 import driver_map as dm
 from ingestion.openf1 import endpoints
 from ingestion.shared import clickhouse as ch
+from ingestion.shared import ingestion_log as log_util
 
 log = structlog.get_logger()
-
-_CHECKPOINT_FILE = os.path.join(os.path.dirname(__file__), ".backfill_checkpoint.json")
-
-
-# ── Checkpoint helpers ────────────────────────────────────────────────────────
-
-
-def _load_checkpoint() -> set[int]:
-    if os.path.exists(_CHECKPOINT_FILE):
-        with open(_CHECKPOINT_FILE) as f:
-            return set(json.load(f))
-    return set()
-
-
-def _save_checkpoint(completed: set[int]) -> None:
-    with open(_CHECKPOINT_FILE, "w") as f:
-        json.dump(sorted(completed), f)
 
 
 # ── Core ingestion ────────────────────────────────────────────────────────────
@@ -51,59 +33,62 @@ def _model_to_dict(m) -> dict:
 
 
 def ingest_session(session_key: int, skip_telemetry: bool = False) -> bool:
-    """Ingest one session. Returns True if all tables succeeded, False if any failed."""
+    """
+    Ingest one session table-by-table.
+    - Skips tables already marked 'ok'/'empty' in the log.
+    - Deletes stale rows before re-inserting for 'failed'/'incomplete' tables.
+    - Records outcome in log after each table.
+    Returns True if no table ended with 'failed' status.
+    """
     slog = log.bind(session_key=session_key)
-    failed = False
+    entity_key = str(session_key)
+    all_ok = True
 
-    for fn, table in [
-        (lambda: endpoints.get_laps(session_key), "raw_openf1.laps"),
-        (lambda: endpoints.get_pit(session_key), "raw_openf1.pit"),
-        (lambda: endpoints.get_stints(session_key), "raw_openf1.stints"),
-        (lambda: endpoints.get_intervals(session_key), "raw_openf1.intervals"),
-        (lambda: endpoints.get_weather(session_key), "raw_openf1.weather"),
+    core_tables = [
+        (lambda: endpoints.get_laps(session_key),         "raw_openf1.laps"),
+        (lambda: endpoints.get_pit(session_key),          "raw_openf1.pit"),
+        (lambda: endpoints.get_stints(session_key),       "raw_openf1.stints"),
+        (lambda: endpoints.get_intervals(session_key),    "raw_openf1.intervals"),
+        (lambda: endpoints.get_weather(session_key),      "raw_openf1.weather"),
         (lambda: endpoints.get_race_control(session_key), "raw_openf1.race_control"),
-    ]:
+    ]
+    telemetry_tables = [
+        (lambda: endpoints.get_car_data(session_key),  "raw_openf1.car_data"),
+        (lambda: endpoints.get_location(session_key),  "raw_openf1.location"),
+    ]
+
+    tables_to_run = core_tables if skip_telemetry else core_tables + telemetry_tables
+
+    for fn, table in tables_to_run:
+        if not log_util.needs_ingestion(log_util.SOURCE_OPENF1, entity_key, table):
+            slog.debug("skipping — already complete", table=table)
+            continue
+
+        ch.delete_rows(table, f"session_key = {session_key}")
         try:
             rows = fn()
+            count = len(rows) if rows else 0
             if rows:
                 ch.insert_rows(table, [_model_to_dict(r) for r in rows])
-                slog.info("inserted", table=table, count=len(rows))
+            log_util.record(log_util.SOURCE_OPENF1, entity_key, table, count)
+            slog.info("ingested", table=table, count=count)
         except Exception as e:
+            log_util.record(log_util.SOURCE_OPENF1, entity_key, table, 0, str(e))
             slog.warning("failed", table=table, error=str(e))
-            failed = True
+            all_ok = False
 
-    if not skip_telemetry:
-        for fn, table in [
-            (lambda: endpoints.get_car_data(session_key), "raw_openf1.car_data"),
-            (lambda: endpoints.get_location(session_key), "raw_openf1.location"),
-        ]:
-            try:
-                rows = fn()
-                if rows:
-                    ch.insert_rows(table, [_model_to_dict(r) for r in rows])
-                    slog.info("inserted telemetry", table=table, count=len(rows))
-            except Exception as e:
-                slog.warning("telemetry failed", table=table, error=str(e))
-                failed = True
-
-    if failed:
-        slog.warning("session completed with errors — will retry on next run")
-    else:
-        slog.info("session done")
-
-    return not failed
+    return all_ok
 
 
-def ingest_year(year: int, skip_telemetry: bool = False, completed: set[int] = None):
+def ingest_year(year: int, skip_telemetry: bool = False) -> None:
     ylog = log.bind(year=year)
     ylog.info("fetching sessions")
 
     sessions = endpoints.get_sessions(year)
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
 
     complete = [
-        s
-        for s in sessions
+        s for s in sessions
         if s.date_end and datetime.fromisoformat(s.date_end.replace("Z", "+00:00")) < now
     ]
 
@@ -117,25 +102,18 @@ def ingest_year(year: int, skip_telemetry: bool = False, completed: set[int] = N
 
     _TELEMETRY_TYPES = {"Race", "Qualifying"}
 
-    skipped = 0
     for session in complete:
-        if session.session_key in completed:
-            skipped += 1
-            continue
-
         try:
             driver_rows = endpoints.get_drivers(session.session_key)
-            ch.insert_rows("raw_openf1.drivers", [_model_to_dict(d) for d in driver_rows])
+            if driver_rows:
+                ch.insert_rows("raw_openf1.drivers", [_model_to_dict(d) for d in driver_rows])
         except Exception as e:
             ylog.warning("drivers failed", session_key=session.session_key, error=str(e))
 
         want_telemetry = not skip_telemetry and session.session_type in _TELEMETRY_TYPES
-        ok = ingest_session(session.session_key, skip_telemetry=not want_telemetry)
-        if ok:
-            completed.add(session.session_key)
-            _save_checkpoint(completed)
+        ingest_session(session.session_key, skip_telemetry=not want_telemetry)
 
-    ylog.info("year done", skipped=skipped, ingested=len(complete) - skipped)
+    ylog.info("year done", sessions=len(complete))
 
 
 def main():
@@ -147,19 +125,12 @@ def main():
         action="store_true",
         help="Skip car_data and location (saves time/memory)",
     )
-    parser.add_argument(
-        "--reset", action="store_true", help="Ignore checkpoint and re-ingest everything"
-    )
     args = parser.parse_args()
 
-    completed = set() if args.reset else _load_checkpoint()
-    if args.reset and os.path.exists(_CHECKPOINT_FILE):
-        os.remove(_CHECKPOINT_FILE)
-
-    log.info("starting backfill", start=args.start, end=args.end, already_completed=len(completed))
+    log.info("starting backfill", start=args.start, end=args.end)
 
     for year in range(args.start, args.end + 1):
-        ingest_year(year, skip_telemetry=args.skip_telemetry, completed=completed)
+        ingest_year(year, skip_telemetry=args.skip_telemetry)
 
     log.info("backfill complete", start=args.start, end=args.end)
 

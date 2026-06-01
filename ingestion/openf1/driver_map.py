@@ -10,7 +10,7 @@ Usage:
 """
 
 import argparse
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 
@@ -59,12 +59,13 @@ def build_driver_map(year: int):
             "jolpica_driver_id": driver_id,
             "openf1_driver_number": number,
             "season": year,
-            "updated_at": datetime.now(UTC),
+            "updated_at": datetime.now(timezone.utc),
         }
         for number, driver_id in number_map.items()
     ]
 
     if rows:
+        ch.delete_rows("dim.driver_id_map", f"season = {year}")
         ch.insert_rows("dim.driver_id_map", rows)
         slog.info("driver map inserted", count=len(rows))
     else:
