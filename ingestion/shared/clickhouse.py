@@ -51,7 +51,13 @@ def insert_arrow(table: str, arrow_table: pa.Table) -> None:
     log.info("inserted arrow batch", table=table, rows=arrow_table.num_rows)
 
 
-def query_one(sql: str) -> Any:
+def delete_rows(table: str, where: str) -> None:
+    """Delete rows matching a WHERE clause (lightweight delete, ClickHouse 23.3+)."""
+    get_client().command(f"DELETE FROM {table} WHERE {where}")
+    log.info("deleted rows", table=table, where=where)
+
+
+def query_one(sql: str, parameters: dict | None = None) -> Any:
     """Return the first value of the first row."""
-    result = get_client().query(sql)
+    result = get_client().query(sql, parameters=parameters or {})
     return result.first_item

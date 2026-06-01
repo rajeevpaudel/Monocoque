@@ -74,8 +74,9 @@ def needs_ingestion(source: str, entity_key: str, table: str) -> bool:
     False when: latest status is 'ok' or 'empty'.
     """
     latest_status = ch.query_one(
-        f"SELECT argMax(status, attempted_at) FROM raw_meta.ingestion_log "
-        f"WHERE source = '{source}' AND entity_key = '{entity_key}' "
-        f"AND table_name = '{table}'"
+        "SELECT argMax(status, attempted_at) FROM raw_meta.ingestion_log "
+        "WHERE source = {source:String} AND entity_key = {entity_key:String} "
+        "AND table_name = {table:String}",
+        parameters={"source": source, "entity_key": entity_key, "table": table},
     )
     return latest_status not in ("ok", "empty")
