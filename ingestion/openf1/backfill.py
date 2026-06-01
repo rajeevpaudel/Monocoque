@@ -45,6 +45,7 @@ def ingest_session(session_key: int, skip_telemetry: bool = False) -> bool:
     all_ok = True
 
     core_tables = [
+        (lambda: endpoints.get_drivers(session_key),      "raw_openf1.drivers"),
         (lambda: endpoints.get_laps(session_key),         "raw_openf1.laps"),
         (lambda: endpoints.get_pit(session_key),          "raw_openf1.pit"),
         (lambda: endpoints.get_stints(session_key),       "raw_openf1.stints"),
@@ -103,13 +104,6 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
     _TELEMETRY_TYPES = {"Race", "Qualifying"}
 
     for session in complete:
-        try:
-            driver_rows = endpoints.get_drivers(session.session_key)
-            if driver_rows:
-                ch.insert_rows("raw_openf1.drivers", [_model_to_dict(d) for d in driver_rows])
-        except Exception as e:
-            ylog.warning("drivers failed", session_key=session.session_key, error=str(e))
-
         want_telemetry = not skip_telemetry and session.session_type in _TELEMETRY_TYPES
         ingest_session(session.session_key, skip_telemetry=not want_telemetry)
 

@@ -28,6 +28,7 @@ def test_ingest_session_deletes_before_reinserting():
          patch("ingestion.openf1.backfill.log_util.record"), \
          patch("ingestion.openf1.backfill.endpoints") as mock_ep, \
          patch("ingestion.openf1.backfill.ch") as mock_ch:
+        mock_ep.get_drivers.return_value = []
         mock_ep.get_laps.return_value = [_make_row()]
         mock_ep.get_pit.return_value = []
         mock_ep.get_stints.return_value = []
@@ -45,6 +46,7 @@ def test_ingest_session_records_failed_on_api_error():
          patch("ingestion.openf1.backfill.log_util.record") as mock_record, \
          patch("ingestion.openf1.backfill.endpoints") as mock_ep, \
          patch("ingestion.openf1.backfill.ch"):
+        mock_ep.get_drivers.return_value = []
         mock_ep.get_laps.side_effect = RuntimeError("API timeout")
         mock_ep.get_pit.return_value = []
         mock_ep.get_stints.return_value = []
