@@ -1,11 +1,21 @@
 CREATE DATABASE IF NOT EXISTS raw_meta;
 
+-- Design notes:
+-- * Backfill records 'ok', 'incomplete', or 'empty' for sessions that already have raw data,
+--   so the first pipeline run skips already-ingested sessions.
+-- * Sessions with zero rows in a source table are NOT backfilled. Absence from this log is
+--   treated as "needs ingestion" by needs_ingestion(), which returns True for missing entries.
+--   Zero-row sessions will therefore be picked up and re-tried on the next pipeline run.
+-- * Running this file more than once is safe: reads always use argMax(status, attempted_at)
+--   to get the latest status per (source, entity_key, table_name), so duplicate backfill rows
+--   are functionally harmless — they all carry the same status value.
+
 CREATE TABLE IF NOT EXISTS raw_meta.ingestion_log (
     source        LowCardinality(String),   -- 'openf1' | 'jolpica'
     entity_key    String,                    -- str(session_key) or "season-round"
     table_name    LowCardinality(String),    -- 'raw_openf1.laps' etc.
     status        LowCardinality(String),    -- 'ok' | 'empty' | 'failed' | 'incomplete'
-    row_count     UInt32,
+    row_count     UInt64,                    -- UInt64: count() returns UInt64 in ClickHouse
     min_expected  UInt32,
     error_msg     String DEFAULT '',
     attempted_at  DateTime
@@ -40,13 +50,13 @@ FROM raw_openf1.weather GROUP BY session_key;
 INSERT INTO raw_meta.ingestion_log
     (source, entity_key, table_name, status, row_count, min_expected, error_msg, attempted_at)
 SELECT 'openf1', toString(session_key), 'raw_openf1.pit',
-       'ok', count(), 0, '', now()
+       if(count() > 0, 'ok', 'empty'), count(), 0, '', now()
 FROM raw_openf1.pit GROUP BY session_key;
 
 INSERT INTO raw_meta.ingestion_log
     (source, entity_key, table_name, status, row_count, min_expected, error_msg, attempted_at)
 SELECT 'openf1', toString(session_key), 'raw_openf1.intervals',
-       'ok', count(), 0, '', now()
+       if(count() > 0, 'ok', 'empty'), count(), 0, '', now()
 FROM raw_openf1.intervals GROUP BY session_key;
 
 INSERT INTO raw_meta.ingestion_log
