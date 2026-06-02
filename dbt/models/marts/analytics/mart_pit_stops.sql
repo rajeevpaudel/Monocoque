@@ -25,4 +25,6 @@ LEFT JOIN {{ ref('fact_race_results') }} fr
     ON  fr.season    = p.season
     AND fr.round     = p.round
     AND fr.driver_id = p.driver_id
-LEFT JOIN {{ ref('dim_drivers') }}      d  ON d.driver_id = p.driver_id
+LEFT JOIN {{ ref('dim_drivers') }}      d
+    ON  d.driver_id = p.driver_id
+    AND d.season    = p.season

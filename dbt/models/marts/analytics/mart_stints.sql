@@ -33,3 +33,4 @@ LEFT JOIN {{ ref('fact_race_results') }} fr
     AND fr.driver_id = jmap.jolpica_driver_id
 LEFT JOIN {{ ref('dim_drivers') }}      d
     ON  d.driver_id = jmap.jolpica_driver_id
+    AND d.season    = sm.season

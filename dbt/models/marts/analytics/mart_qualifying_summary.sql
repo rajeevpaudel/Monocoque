@@ -54,6 +54,7 @@ LEFT JOIN {{ ref('dim_sessions') }}             ds
     ON  ds.session_key = fq.session_key
 LEFT JOIN {{ ref('dim_drivers') }}              d
     ON  d.driver_id = fq.driver_id
+    AND d.season    = fq.season
 LEFT JOIN (
     -- raw_openf1.drivers can have duplicate rows per (session_key, driver_number)
     -- due to repeated ingestion; deduplicate here before joining.
@@ -71,3 +72,4 @@ LEFT JOIN (
     AND od.driver_number = fq.openf1_driver_number
 LEFT JOIN {{ ref('dim_constructors') }}         c
     ON  c.constructor_id = fq.constructor_id
+    AND c.season         = fq.season
