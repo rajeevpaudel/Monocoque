@@ -5,4 +5,4 @@ LEFT JOIN {{ ref('fact_race_results') }} fr
     ON  fr.season = r.season
     AND fr.round  = r.round
 WHERE r.race_date <= today()
-  AND fr.jolpica_driver_id IS NULL
+  AND fr.driver_id IS NULL

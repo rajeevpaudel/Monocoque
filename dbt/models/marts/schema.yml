@@ -59,7 +59,7 @@ models:
 
   - name: fact_race_results
     columns:
-      - name: jolpica_driver_id
+      - name: driver_id
         tests:
           - not_null
           - relationships:

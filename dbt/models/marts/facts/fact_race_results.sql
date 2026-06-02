@@ -4,14 +4,14 @@
         materialized='incremental',
         incremental_strategy='append',
         engine='MergeTree()',
-        order_by='(season, round, jolpica_driver_id)',
+        order_by='(season, round, driver_id)',
     )
 }}
 
 SELECT
     season,
     round,
-    jolpica_driver_id,
+    driver_id,
     openf1_driver_number,
     constructor_id,
     grid_position,

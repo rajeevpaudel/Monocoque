@@ -3,7 +3,7 @@
 SELECT
     r.season                AS season,
     r.round                 AS round,
-    r.driver_id             AS jolpica_driver_id,
+    r.driver_id             AS driver_id,
     m.openf1_driver_number  AS openf1_driver_number,
     r.constructor_id        AS constructor_id,
     r.grid_position         AS grid_position,
