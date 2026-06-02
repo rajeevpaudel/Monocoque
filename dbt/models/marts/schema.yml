@@ -223,6 +223,20 @@ models:
               config:
                 severity: warn
 
+  - name: dim_session_drivers
+    columns:
+      - name: session_key
+        tests:
+          - not_null
+      - name: driver_number
+        tests:
+          - not_null
+      - name: driver_code
+        tests:
+          - not_null:
+              config:
+                severity: warn
+
   - name: mart_qualifying_summary
     columns:
       - name: driver_id

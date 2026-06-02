@@ -33,9 +33,6 @@ SELECT
     sm.round                        AS round,
     sm.session_type                 AS session_type,
     jmap.jolpica_driver_id          AS driver_id,
-    d.name_acronym                  AS driver_code,
-    d.team_name                     AS team_name,
-    if(d.team_colour IS NOT NULL AND d.team_colour != '', concat('#', d.team_colour), NULL) AS team_colour,
     cd._ingested_at                 AS _ingested_at,
     -- 1 when GPS coordinates changed from the previous sample; 0 when duplicated.
     -- GPS updates at ~2-3 Hz while telemetry is sampled at ~3.7 Hz.
@@ -63,9 +60,6 @@ ASOF LEFT JOIN {{ ref('stg_fastf1__distances') }} f1d
     AND f1d.date         <= cd.date
 LEFT JOIN {{ ref('int_session_map') }}      sm
     ON  sm.session_key = cd.session_key
-LEFT JOIN {{ ref('stg_openf1__drivers') }}  d
-    ON  d.session_key   = cd.session_key
-    AND d.driver_number = cd.driver_number
 LEFT JOIN {{ ref('driver_id_map') }} jmap
     ON  jmap.openf1_driver_number = cd.driver_number
     AND jmap.season               = sm.season
