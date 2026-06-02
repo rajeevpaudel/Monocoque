@@ -4,11 +4,6 @@ Data quality monitor DAG.
 Runs after every ingestion DAG and hourly as a safety net.
 Parses dbt test failures, sends Telegram alerts,
 and triggers re-ingestion DAGs for known fixable failures.
-
-Note: Elementary's edr CLI is incompatible with ClickHouse 24.3 (no transaction
-support, CAST(current_timestamp) syntax mismatch). The run_elementary_monitor task
-runs best-effort and never blocks the pipeline. Test failures are sourced from
-dbt's own run_results.json via XCom, not from elementary.elementary_test_results.
 """
 
 import json
@@ -53,36 +48,25 @@ def classify_failures(
     },
 )
 def dq_monitor():
-    def _run(cmd: str) -> str:
-        # --no-partial-parse: avoids PermissionError on the mounted dbt/target/
-        # directory when the container user differs from the host file owner.
-        dbt_flags = "--profiles-dir {profiles} --no-partial-parse".format(
-            profiles=DBT_PROFILES_DIR
-        )
-        # edr commands take --profiles-dir but not --no-partial-parse
-        if cmd.startswith("edr "):
-            full_cmd = f"cd {DBT_DIR} && {cmd} --profiles-dir {DBT_PROFILES_DIR}"
-        else:
-            full_cmd = f"cd {DBT_DIR} && {cmd} {dbt_flags}"
+    def _dbt(cmd: str) -> str:
         result = subprocess.run(
-            full_cmd,
+            f"cd {DBT_DIR} && dbt {cmd} --profiles-dir {DBT_PROFILES_DIR} --no-partial-parse",
             shell=True,
             capture_output=True,
             text=True,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"Command failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
+            raise RuntimeError(f"dbt {cmd} failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
         return result.stdout
 
     @task
     def run_dbt_freshness() -> None:
-        _run("dbt source freshness")
+        _dbt("source freshness")
 
     @task
     def run_dbt_tests() -> dict:
-        # Run dbt test without raising on non-zero exit — test failures are expected
-        # and must be collected, not treated as a task failure. Only a hard crash
-        # (e.g. ClickHouse unreachable) justifies failing this task.
+        # Run without raising — dbt exits non-zero when tests fail, which is
+        # expected. Failures are read from run_results.json and returned via XCom.
         result = subprocess.run(
             f"cd {DBT_DIR} && dbt test --profiles-dir {DBT_PROFILES_DIR} --no-partial-parse",
             shell=True,
@@ -102,8 +86,6 @@ def dq_monitor():
                         "message": r.get("message", ""),
                     })
         except Exception as e:
-            # run_results.json unreadable — treat the whole run as an error
-            # so parse_and_act still fires and sends an alert.
             failures.append({
                 "test_name": "dbt_test_runner",
                 "status": "error",
@@ -111,17 +93,6 @@ def dq_monitor():
                 "message": f"Could not read run_results.json: {e}\n\nSTDOUT:\n{result.stdout[-1000:]}",
             })
         return {"failures": failures}
-
-    @task(trigger_rule="all_done")
-    def run_elementary_monitor() -> None:
-        # Best-effort Elementary HTML report. Non-blocking because Elementary's
-        # ClickHouse adapter is incompatible with ClickHouse 24.3: no transaction
-        # support and CAST(current_timestamp, 'timestamp') syntax not recognized.
-        try:
-            _run("edr report")
-        except RuntimeError as e:
-            import logging
-            logging.getLogger(__name__).warning("edr report failed (non-blocking): %s", e)
 
     @task
     def parse_and_act(test_results: dict) -> None:
@@ -169,12 +140,9 @@ def dq_monitor():
 
     freshness = run_dbt_freshness()
     tests = run_dbt_tests()
-    monitor = run_elementary_monitor()
     act = parse_and_act(tests)
 
-    # monitor runs in parallel with act after tests complete.
-    # act does not wait on monitor — test results come from XCom, not Elementary.
-    freshness >> tests >> [monitor, act]
+    freshness >> tests >> act
 
 
 dq_monitor()

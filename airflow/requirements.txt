@@ -9,4 +9,3 @@ tenacity>=8.0
 
 # dbt + elementary
 dbt-clickhouse
-elementary-data[clickhouse]==0.16.0
