@@ -22,7 +22,7 @@ SELECT
     l.duration_sector_3     AS of1_s3,
     sm.session_key          AS session_key
 FROM {{ ref('stg_jolpica__results') }}          r
-LEFT JOIN {{ source('dim', 'driver_id_map') }}  m
+LEFT JOIN {{ ref('driver_id_map') }}  m
     ON  m.jolpica_driver_id = r.driver_id
     AND m.season            = r.season
 LEFT JOIN {{ ref('int_session_map') }}          sm

@@ -8,14 +8,18 @@
 }}
 
 WITH latest_headshot AS (
-    -- Only use 2023+ mappings — pre-2023 driver numbers are recycled across eras
-    -- and would match the wrong modern driver's headshot.
+    -- Join through int_session_map to scope driver_number by season.
+    -- Without this, a number reused by a different driver in a later season
+    -- (e.g. #1 passing from one champion to the next) would match the wrong sessions.
     SELECT
         jmap.jolpica_driver_id                        AS driver_id,
         argMax(od.headshot_url, od.session_key)       AS headshot_url
-    FROM {{ source('dim', 'driver_id_map') }}         jmap
+    FROM {{ ref('driver_id_map') }}         jmap
+    JOIN {{ ref('int_session_map') }}                 sm
+        ON  sm.season = jmap.season
     JOIN {{ ref('stg_openf1__drivers') }}             od
         ON  od.driver_number = jmap.openf1_driver_number
+        AND od.session_key   = sm.session_key
     WHERE jmap.season >= 2023
       AND od.headshot_url != ''
     GROUP BY jmap.jolpica_driver_id

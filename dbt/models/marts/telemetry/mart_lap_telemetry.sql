@@ -66,7 +66,7 @@ LEFT JOIN {{ ref('int_session_map') }}      sm
 LEFT JOIN {{ ref('stg_openf1__drivers') }}  d
     ON  d.session_key   = cd.session_key
     AND d.driver_number = cd.driver_number
-LEFT JOIN {{ source('dim', 'driver_id_map') }} jmap
+LEFT JOIN {{ ref('driver_id_map') }} jmap
     ON  jmap.openf1_driver_number = cd.driver_number
     AND jmap.season               = sm.season
 

@@ -35,3 +35,12 @@ models:
         +materialized: incremental
         +incremental_strategy: append
         +schema: mart
+
+seeds:
+  f1_warehouse:
+    +schema: staging
+    driver_id_map:
+      +column_types:
+        jolpica_driver_id: String
+        openf1_driver_number: UInt8
+        season: UInt16

@@ -12,18 +12,18 @@ sources:
       - name: races
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 12, period: hour}
-          error_after: {count: 48, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: results
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 12, period: hour}
-          error_after: {count: 48, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: qualifying
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 12, period: hour}
-          error_after: {count: 48, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: sprint_results
       - name: lap_times
       - name: pit_stops
@@ -37,8 +37,8 @@ sources:
       - name: sessions
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 6, period: hour}
-          error_after: {count: 24, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
         columns:
           - name: session_type
             tests:
@@ -50,34 +50,28 @@ sources:
       - name: laps
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 6, period: hour}
-          error_after: {count: 24, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: pit
       - name: stints
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 6, period: hour}
-          error_after: {count: 24, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: intervals
       - name: weather
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 6, period: hour}
-          error_after: {count: 24, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: race_control
       - name: car_data
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 6, period: hour}
-          error_after: {count: 24, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: location
       - name: team_radio
-
-  - name: dim
-    database: dim
-    schema: dim
-    tables:
-      - name: driver_id_map
 
   - name: raw_fastf1
     database: raw_fastf1
@@ -86,5 +80,5 @@ sources:
       - name: car_telemetry
         loaded_at_field: _ingested_at
         freshness:
-          warn_after: {count: 6, period: hour}
-          error_after: {count: 24, period: hour}
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}

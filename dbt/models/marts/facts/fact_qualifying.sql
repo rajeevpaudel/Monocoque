@@ -81,7 +81,7 @@ matched_laps AS (
         argMin(al.segments_sector_3, abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS segments_s3
     FROM all_laps al
     JOIN {{ ref('int_session_map') }}             sm ON sm.session_key = al.session_key
-    JOIN {{ source('dim', 'driver_id_map') }}     m
+    JOIN {{ ref('driver_id_map') }}     m
         ON  m.openf1_driver_number = al.driver_number
         AND m.season               = sm.season
     JOIN jolpica_ms                              jms
@@ -127,7 +127,7 @@ SELECT
                                                 'mismatch'
     ) AS best_source_match
 FROM {{ ref('stg_jolpica__qualifying') }}        q
-LEFT JOIN {{ source('dim', 'driver_id_map') }}   m
+LEFT JOIN {{ ref('driver_id_map') }}   m
     ON  m.jolpica_driver_id = q.driver_id
     AND m.season            = q.season
 LEFT JOIN {{ ref('int_session_map') }}           sm
