@@ -1,4 +1,4 @@
-.PHONY: up down migrate reset-data backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test dbt-docs lint format test
+.PHONY: up down migrate reset-data backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test dbt-docs dbt-docs-serve lint format test
 
 up:
 	docker-compose up -d
@@ -44,6 +44,10 @@ dbt-test:
 dbt-docs:
 	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt docs generate --profiles-dir .
 	cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json dbt/docs/
+
+dbt-docs-serve: dbt-docs
+	@echo "Opening dbt docs at http://localhost:8081"
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt docs serve --profiles-dir . --port 8081
 
 lint:
 	ruff check ingestion/ airflow/
