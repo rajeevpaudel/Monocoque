@@ -47,8 +47,18 @@ def classify_failures(
 )
 def dq_monitor():
     def _run(cmd: str) -> str:
+        # --no-partial-parse: avoids PermissionError on the mounted dbt/target/
+        # directory when the container user differs from the host file owner.
+        dbt_flags = "--profiles-dir {profiles} --no-partial-parse".format(
+            profiles=DBT_PROFILES_DIR
+        )
+        # edr commands take --profiles-dir but not --no-partial-parse
+        if cmd.startswith("edr "):
+            full_cmd = f"cd {DBT_DIR} && {cmd} --profiles-dir {DBT_PROFILES_DIR}"
+        else:
+            full_cmd = f"cd {DBT_DIR} && {cmd} {dbt_flags}"
         result = subprocess.run(
-            f"cd {DBT_DIR} && {cmd} --profiles-dir {DBT_PROFILES_DIR}",
+            full_cmd,
             shell=True,
             capture_output=True,
             text=True,
@@ -67,7 +77,10 @@ def dq_monitor():
 
     @task
     def run_elementary_monitor() -> None:
-        _run("edr monitor")
+        # edr report collects test results into elementary.elementary_test_results
+        # without requiring a Slack/Teams webhook. Alerting is handled downstream
+        # by parse_and_act via Telegram.
+        _run("edr report")
 
     @task
     def parse_and_act(ti=None) -> None:
