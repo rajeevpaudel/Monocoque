@@ -134,6 +134,37 @@ models:
         tests:
           - not_null
 
+  - name: fact_pit_stops
+    columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
+      - name: driver_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_drivers')
+                field: driver_id
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
+      - name: stop_number
+        tests:
+          - not_null
+      - name: lap_number
+        tests:
+          - not_null
+
   - name: fact_laps
     columns:
       - name: race_sk
