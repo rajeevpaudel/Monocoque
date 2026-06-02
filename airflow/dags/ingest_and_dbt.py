@@ -34,8 +34,13 @@ DBT_PROFILES_DIR = "/opt/airflow/dbt"
 
 
 def _dbt(cmd: str) -> str:
+    # --no-partial-parse: skip reading/writing partial_parse.msgpack in the
+    # mounted dbt/target/ directory. The Airflow container user differs from
+    # the host user who owns that directory, causing a PermissionError when dbt
+    # tries to update the cache file after a profile change.
     result = subprocess.run(
-        f"cd {DBT_DIR} && dbt {cmd} --profiles-dir {DBT_PROFILES_DIR} --log-path /tmp/dbt-logs",
+        f"cd {DBT_DIR} && dbt {cmd} --profiles-dir {DBT_PROFILES_DIR}"
+        f" --log-path /tmp/dbt-logs --no-partial-parse",
         shell=True,
         capture_output=True,
         text=True,
