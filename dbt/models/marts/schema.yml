@@ -34,7 +34,11 @@ models:
       - name: constructor_id
         tests:
           - not_null
-          - unique
+      - name: is_current
+        tests:
+          - not_null:
+              config:
+                severity: warn
 
   - name: dim_sessions
     columns:
