@@ -59,6 +59,15 @@ models:
 
   - name: fact_race_results
     columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
       - name: driver_id
         tests:
           - not_null
@@ -85,6 +94,15 @@ models:
 
   - name: fact_qualifying
     columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
       - name: driver_id
         tests:
           - not_null
@@ -97,6 +115,15 @@ models:
 
   - name: fact_sprint_results
     columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
       - name: driver_id
         tests:
           - not_null
@@ -109,6 +136,15 @@ models:
 
   - name: fact_laps
     columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
       - name: driver_id
         tests:
           - not_null

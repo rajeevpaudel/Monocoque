@@ -9,6 +9,7 @@
 }}
 
 SELECT
+    toUInt32(jl.season * 100 + jl.round) AS race_sk,
     jl.season               AS season,
     jl.round                AS round,
     jl.driver_id            AS driver_id,

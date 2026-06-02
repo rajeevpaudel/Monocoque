@@ -94,6 +94,7 @@ matched_laps AS (
 )
 
 SELECT
+    toUInt32(q.season * 100 + q.round) AS race_sk,
     q.season,
     q.round,
     q.driver_id,
