@@ -2,11 +2,18 @@
 Data quality monitor DAG.
 
 Runs after every ingestion DAG and hourly as a safety net.
-Parses dbt + elementary test failures, sends Telegram alerts,
+Parses dbt test failures, sends Telegram alerts,
 and triggers re-ingestion DAGs for known fixable failures.
+
+Note: Elementary's edr CLI is incompatible with ClickHouse 24.3 (no transaction
+support, CAST(current_timestamp) syntax mismatch). The run_elementary_monitor task
+runs best-effort and never blocks the pipeline. Test failures are sourced from
+dbt's own run_results.json via XCom, not from elementary.elementary_test_results.
 """
 
+import json
 import os
+import re
 import subprocess
 from datetime import datetime, timedelta
 
@@ -64,7 +71,7 @@ def dq_monitor():
             text=True,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"Command failed:\n{result.stderr}")
+            raise RuntimeError(f"Command failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
         return result.stdout
 
     @task
@@ -72,43 +79,57 @@ def dq_monitor():
         _run("dbt source freshness")
 
     @task
-    def run_dbt_tests() -> None:
-        _run("dbt test")
+    def run_dbt_tests() -> dict:
+        stdout = _run("dbt test")
+        # Read structured results from run_results.json written by dbt.
+        failures = []
+        try:
+            with open(f"{DBT_DIR}/target/run_results.json") as f:
+                run_results = json.load(f)
+            for r in run_results.get("results", []):
+                if r.get("status") in ("fail", "error"):
+                    failures.append({
+                        "test_name": r.get("unique_id", "unknown").split(".")[-1],
+                        "status": r["status"],
+                        "failures": r.get("failures", 0),
+                        "message": r.get("message", ""),
+                    })
+        except Exception:
+            # Fallback: scan stdout summary for failure count
+            m = re.search(r"(\d+) error", stdout)
+            if m and int(m.group(1)) > 0:
+                failures.append({
+                    "test_name": "unknown",
+                    "status": "error",
+                    "failures": int(m.group(1)),
+                    "message": stdout[-500:],
+                })
+        return {"failures": failures}
 
-    @task
+    @task(trigger_rule="all_done")
     def run_elementary_monitor() -> None:
-        # edr report collects test results into elementary.elementary_test_results
-        # without requiring a Slack/Teams webhook. Alerting is handled downstream
-        # by parse_and_act via Telegram.
-        _run("edr report")
+        # Best-effort Elementary HTML report. Non-blocking because Elementary's
+        # ClickHouse adapter is incompatible with ClickHouse 24.3: no transaction
+        # support and CAST(current_timestamp, 'timestamp') syntax not recognized.
+        try:
+            _run("edr report")
+        except RuntimeError as e:
+            import logging
+            logging.getLogger(__name__).warning("edr report failed (non-blocking): %s", e)
 
     @task
-    def parse_and_act(ti=None) -> None:
-        import clickhouse_connect
-
+    def parse_and_act(test_results: dict) -> None:
         bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
         chat_id = os.environ["TELEGRAM_CHAT_ID"]
-        ch_host = os.environ.get("CLICKHOUSE_HOST", "clickhouse")
 
-        client = clickhouse_connect.get_client(host=ch_host)
-        rows = client.query(
-            """
-            SELECT
-                test_unique_id   AS test_name,
-                status,
-                failures,
-                elementary_unique_id
-            FROM elementary.elementary_test_results
-            WHERE status = 'fail'
-              AND generated_at >= now() - INTERVAL 2 HOUR
-            ORDER BY generated_at DESC
-            """
-        ).named_results()
-
-        failures = [dict(r) for r in rows]
+        failures = test_results.get("failures", [])
 
         if not failures:
             from dq_telegram import send_daily_ok
+            import clickhouse_connect
+            client = clickhouse_connect.get_client(
+                host=os.environ.get("CLICKHOUSE_HOST", "clickhouse")
+            )
             stats_rows = client.query(
                 """
                 SELECT
@@ -143,9 +164,11 @@ def dq_monitor():
     freshness = run_dbt_freshness()
     tests = run_dbt_tests()
     monitor = run_elementary_monitor()
-    act = parse_and_act()
+    act = parse_and_act(tests)
 
-    freshness >> tests >> monitor >> act
+    # monitor runs in parallel with act after tests complete.
+    # act does not wait on monitor — test results come from XCom, not Elementary.
+    freshness >> tests >> [monitor, act]
 
 
 dq_monitor()
