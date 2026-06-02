@@ -80,8 +80,15 @@ def dq_monitor():
 
     @task
     def run_dbt_tests() -> dict:
-        stdout = _run("dbt test")
-        # Read structured results from run_results.json written by dbt.
+        # Run dbt test without raising on non-zero exit — test failures are expected
+        # and must be collected, not treated as a task failure. Only a hard crash
+        # (e.g. ClickHouse unreachable) justifies failing this task.
+        result = subprocess.run(
+            f"cd {DBT_DIR} && dbt test --profiles-dir {DBT_PROFILES_DIR} --no-partial-parse",
+            shell=True,
+            capture_output=True,
+            text=True,
+        )
         failures = []
         try:
             with open(f"{DBT_DIR}/target/run_results.json") as f:
@@ -94,16 +101,15 @@ def dq_monitor():
                         "failures": r.get("failures", 0),
                         "message": r.get("message", ""),
                     })
-        except Exception:
-            # Fallback: scan stdout summary for failure count
-            m = re.search(r"(\d+) error", stdout)
-            if m and int(m.group(1)) > 0:
-                failures.append({
-                    "test_name": "unknown",
-                    "status": "error",
-                    "failures": int(m.group(1)),
-                    "message": stdout[-500:],
-                })
+        except Exception as e:
+            # run_results.json unreadable — treat the whole run as an error
+            # so parse_and_act still fires and sends an alert.
+            failures.append({
+                "test_name": "dbt_test_runner",
+                "status": "error",
+                "failures": 1,
+                "message": f"Could not read run_results.json: {e}\n\nSTDOUT:\n{result.stdout[-1000:]}",
+            })
         return {"failures": failures}
 
     @task(trigger_rule="all_done")
