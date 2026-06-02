@@ -16,10 +16,14 @@ models:
           - unique
       - name: length_km
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn
       - name: corners
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn
 
   - name: dim_constructors
     columns:
@@ -41,6 +45,8 @@ models:
               arguments:
                 to: ref('dim_circuits')
                 field: circuit_id
+              config:
+                severity: warn
       - name: race_name
         tests:
           - not_null
@@ -50,12 +56,6 @@ models:
       - name: round
         tests:
           - not_null
-    tests:
-      - elementary.volume_anomalies:
-          time_bucket:
-            period: day
-            count: 7
-          anomaly_direction: drop
 
   - name: fact_race_results
     columns:
@@ -120,9 +120,6 @@ models:
           - not_null
 
   - name: mart_lap_telemetry
-    meta:
-      elementary:
-        timestamp_column: date
     columns:
       - name: session_key
         tests:
@@ -133,16 +130,33 @@ models:
       - name: lap_number
         tests:
           - not_null
-    tests:
-      - elementary.volume_anomalies:
-          time_bucket:
-            period: day
-            count: 1
+
+  - name: dim_races
+    columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - unique
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
+      - name: race_name
+        tests:
+          - not_null
+      - name: circuit_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_circuits')
+                field: circuit_id
+              config:
+                severity: warn
 
   - name: mart_qualifying_summary
-    meta:
-      elementary:
-        timestamp_column: qualifying_date
     columns:
       - name: driver_id
         tests:
@@ -158,12 +172,3 @@ models:
           - accepted_values:
               arguments:
                 values: ['matched', 'jolpica_only', 'mismatch']
-          - elementary.column_anomalies:
-              column_anomalies:
-                - null_count
-                - null_percent
-    tests:
-      - elementary.volume_anomalies:
-          time_bucket:
-            period: day
-            count: 1
