@@ -51,3 +51,5 @@ LEFT JOIN meeting_rounds                    mr
     ON  mr.meeting_key = s.meeting_key
 LEFT JOIN {{ ref('dim_circuits') }}         c
     ON  c.circuit_id = mr.circuit_id
+-- Exclude sessions that couldn't be mapped to a Jolpica race round (e.g. pre-season testing).
+WHERE mr.round IS NOT NULL

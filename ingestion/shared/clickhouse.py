@@ -60,4 +60,5 @@ def delete_rows(table: str, where: str) -> None:
 def query_one(sql: str, parameters: dict | None = None) -> Any:
     """Return the first value of the first row."""
     result = get_client().query(sql, parameters=parameters or {})
-    return result.first_item
+    rows = result.result_rows
+    return rows[0][0] if rows else None

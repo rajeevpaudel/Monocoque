@@ -18,3 +18,16 @@ f1_warehouse:
       schema: elementary
       database: elementary
       secure: false
+
+elementary:
+  target: default
+  outputs:
+    default:
+      type: clickhouse
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('CLICKHOUSE_PORT', '8123') | int }}"
+      user: "{{ env_var('CLICKHOUSE_USER', 'default') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', '') }}"
+      schema: elementary
+      database: elementary
+      secure: false

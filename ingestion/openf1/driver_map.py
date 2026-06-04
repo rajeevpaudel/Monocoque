@@ -37,12 +37,15 @@ def _jolpica_number_map(year: int) -> dict[int, str]:
             if number:
                 mapping[int(number)] = driver_id
 
-    # Supplement: permanent numbers for drivers who only appeared in practice/quali
+    # Supplement: permanent numbers for drivers who only appeared in practice/quali.
+    # Skip drivers already mapped via race results (handles champions on #1 whose
+    # permanent number would otherwise add a conflicting second entry).
+    already_mapped_drivers = set(mapping.values())
     all_drivers = paginate_all(f"{year}/drivers", "DriverTable", "Drivers")
     for d in all_drivers:
         perm = d.get("permanentNumber")
         driver_id = d["driverId"]
-        if perm and int(perm) not in mapping:
+        if perm and int(perm) not in mapping and driver_id not in already_mapped_drivers:
             mapping[int(perm)] = driver_id
 
     return mapping

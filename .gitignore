@@ -10,9 +10,11 @@ venv/
 
 # dbt
 dbt/target/
+dbt/target.bak/
 dbt/logs/
 dbt/.user.yml
 dbt/dbt_packages/
+dbt/edr_target/
 
 # Airflow
 airflow/logs/

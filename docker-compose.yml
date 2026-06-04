@@ -3,6 +3,7 @@ version: "3.9"
 x-airflow-common: &airflow-common
   build: ./airflow
   image: f1-airflow:local
+  user: "${AIRFLOW_UID:-50000}:0"
   environment: &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -119,6 +120,7 @@ services:
 
   dbt-docs:
     image: python:3.11-slim
+    user: "${UID:-1000}:${GID:-1000}"
     working_dir: /app/dbt
     volumes:
       - ./dbt:/app/dbt

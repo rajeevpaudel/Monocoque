@@ -158,8 +158,8 @@ def get_stints(session_key: int) -> list[OpenF1Stint]:
                 stint_number=r["stint_number"],
                 lap_start=r["lap_start"],
                 lap_end=r.get("lap_end"),
-                compound=r.get("compound", ""),
-                tyre_age_at_start=r.get("tyre_age_at_start", 0),
+                compound=r.get("compound") or "",
+                tyre_age_at_start=r.get("tyre_age_at_start") or 0,
                 _raw_json=raw(r),
             )
         )

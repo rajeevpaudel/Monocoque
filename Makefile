@@ -1,10 +1,20 @@
-.PHONY: up down migrate reset-data backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test dbt-docs dbt-docs-serve lint format test
+.PHONY: up down build-up fix-perms migrate reset-data backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test dbt-docs dbt-docs-serve lint format test
 
-up:
-	docker-compose up -d
+up: _ensure-airflow-uid
+	docker compose up -d
+
+build-up: _ensure-airflow-uid
+	docker compose up -d --build
+
+# Fix ownership of dbt directory after containers write files as wrong user
+fix-perms:
+	sudo chown -R $$USER:$$USER ./dbt
+
+_ensure-airflow-uid:
+	@grep -q "^AIRFLOW_UID=" .env 2>/dev/null || echo "AIRFLOW_UID=$$(id -u)" >> .env
 
 down:
-	docker-compose down
+	docker compose down
 
 migrate:
 	python clickhouse/migrate.py
