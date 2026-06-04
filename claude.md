@@ -330,3 +330,8 @@ OPENF1_ACCESS_TOKEN=
 - [ ] Incremental dbt models for fact tables (no full refresh on each run)
 - [ ] Docker Compose local dev environment
 - [ ] README with architecture diagram and setup instructions
+
+
+
+After any schema changes always update the warehouse access guide.md in docs
+
