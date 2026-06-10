@@ -1,4 +1,4 @@
-{{ config(severity='warn') }}
+{{ config(tags=["marts"], severity='warn') }}
 -- Warn if two drivers share the same qualifying position within a session.
 -- Only Q3 finalists (drivers with a Q3 time set) are checked; tied Q1/Q2
 -- eliminations are valid and expected in the Jolpica source data.

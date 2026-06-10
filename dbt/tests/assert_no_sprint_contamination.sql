@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any qualifying round has more rows than the era's maximum grid size.
 -- Excess rows indicate sprint qualifying session contamination (2021+) or a general ingestion bug.
 -- Era max mirrors assert_driver_count_per_session and assert_grid_position_valid.

@@ -1,3 +1,4 @@
+{{ config(tags=['marts']) }}
 -- Fail if any Race or Qualifying session (2023+) has no weather records.
 SELECT ds.session_key, ds.season, ds.round, ds.session_type
 FROM {{ ref('dim_sessions') }} ds

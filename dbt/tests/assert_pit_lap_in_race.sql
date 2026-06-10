@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any pit stop's lap number exceeds the race winner's total laps.
 SELECT
     ps.season,

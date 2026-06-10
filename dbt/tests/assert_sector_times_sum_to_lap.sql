@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if sector times don't sum to within ±0.2s of the matched lap duration.
 -- NULL sector times (pre-2023 or incomplete laps) are excluded.
 SELECT season, round, driver_id,

@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any driver scores more than 26 points in a race (max: 25 + 1 fastest lap)
 -- or more than 8 points in a sprint (max: 8 for first place).
 SELECT 'race' AS session_type, season, round, driver_id, points

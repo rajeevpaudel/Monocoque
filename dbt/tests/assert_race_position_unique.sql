@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if two drivers share the same classified finishing position in a race.
 -- Only rows with a numeric position_text (classified finishers) are checked.
 SELECT season, round, finish_position, count() AS driver_count

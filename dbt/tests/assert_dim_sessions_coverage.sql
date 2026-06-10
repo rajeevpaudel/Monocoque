@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any OpenF1-era qualifying round has no matching row in dim_sessions.
 SELECT DISTINCT fq.season, fq.round
 FROM {{ ref('fact_qualifying') }} fq

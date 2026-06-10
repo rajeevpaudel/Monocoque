@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any 2011+ race result (>10 laps completed) has no pit stop records.
 -- Pre-2011 pit stop coverage in Jolpica is incomplete so we exclude those years.
 SELECT fr.season, fr.round, fr.driver_id

@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any grid position exceeds the maximum field size for that era.
 -- Grid position 0 is valid (pit lane start due to grid penalty).
 -- Era max-grid mirrors assert_driver_count_per_session.

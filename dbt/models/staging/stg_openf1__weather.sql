@@ -1,6 +1,6 @@
 SELECT
     session_key,
-    toDateTime(date)        AS weather_date,
+    parseDateTime64BestEffort(date) AS weather_date,
     air_temperature,
     track_temperature,
     humidity,

@@ -1,7 +1,7 @@
 -- Warn if OpenF1 and Jolpica race lap counts differ by more than 2 for any driver.
 -- Both sides count all laps (including pit-out laps) to avoid systematic undercounting in OpenF1.
 -- Severity is warn because OpenF1 occasionally serves partial lap data from stale replicas.
-{{ config(severity='warn') }}
+{{ config(severity='warn', tags=['marts']) }}
 WITH openf1_laps AS (
     SELECT session_key, driver_number, count() AS lap_count
     FROM {{ ref('stg_openf1__laps') }}

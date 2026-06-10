@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any qualifying session has a driver count outside the known grid size for that era.
 -- Era reference (validated against actual raw_jolpica.qualifying counts):
 --   1950-1959: early championship, highly variable (actual data starts 2000)

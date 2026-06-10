@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any session_key in mart_lap_telemetry has no entry in dim_sessions.
 SELECT DISTINCT mlt.session_key
 FROM {{ ref('mart_lap_telemetry') }} mlt

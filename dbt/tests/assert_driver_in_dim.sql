@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any race result references a driver_id not present in dim_drivers.
 SELECT DISTINCT fr.driver_id
 FROM {{ ref('fact_race_results') }} fr

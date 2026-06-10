@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any matched driver in mart_qualifying_summary has no telemetry rows.
 SELECT mqs.season, mqs.round, mqs.driver_id
 FROM {{ ref('mart_qualifying_summary') }} mqs

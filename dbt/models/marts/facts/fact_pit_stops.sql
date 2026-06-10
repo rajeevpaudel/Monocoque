@@ -10,16 +10,16 @@
 
 SELECT
     toUInt32(p.season * 100 + p.round) AS race_sk,
-    p.season,
-    p.round,
-    p.driver_id,
-    p.stop_number,
-    p.lap_number,
-    p.pit_time_of_day,
-    p.pit_duration,
-    p.pit_duration_ms,
-    m.openf1_driver_number,
-    sm.session_key
+    p.season            AS season,
+    p.round             AS round,
+    p.driver_id         AS driver_id,
+    p.stop_number       AS stop_number,
+    p.lap_number        AS lap_number,
+    p.pit_time_of_day   AS pit_time_of_day,
+    p.pit_duration      AS pit_duration,
+    p.pit_duration_ms   AS pit_duration_ms,
+    m.openf1_driver_number AS openf1_driver_number,
+    sm.session_key      AS session_key
 FROM {{ ref('stg_jolpica__pit_stops') }}        p
 LEFT JOIN {{ ref('driver_id_map') }}            m
     ON  m.jolpica_driver_id = p.driver_id

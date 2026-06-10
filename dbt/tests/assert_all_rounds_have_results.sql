@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any past race round has no rows in fact_race_results.
 SELECT r.season, r.round
 FROM {{ ref('stg_jolpica__races') }} r

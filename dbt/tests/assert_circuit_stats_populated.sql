@@ -1,3 +1,4 @@
+{{ config(tags=["marts"]) }}
 -- Fail if any circuit used in the current season has NULL length_km or corners.
 SELECT c.circuit_id, c.length_km, c.corners
 FROM {{ ref('dim_circuits') }} c
