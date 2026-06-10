@@ -13,14 +13,13 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
     PYTHONPATH: /opt/airflow
-    # Pass ClickHouse connection to DAGs
     CLICKHOUSE_HOST: clickhouse
     CLICKHOUSE_PORT: "8123"
-    CLICKHOUSE_USER: default
-    CLICKHOUSE_PASSWORD: ""
-    CLICKHOUSE_DATABASE: f1
-    TELEGRAM_BOT_TOKEN: "8601358698:AAHDnH9SWIxlHZlEnBXyoeQUJXE87dJUDtQ"
-    TELEGRAM_CHAT_ID: 1708987723
+    CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+    CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+    CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-f1}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
   env_file:
     - .env
   volumes:
@@ -74,7 +73,7 @@ services:
       - -c
       - |
         airflow db migrate &&
-        airflow users create --username admin --password admin \
+        airflow users create --username admin --password ${AIRFLOW_ADMIN_PASSWORD} \
           --firstname Admin --lastname Admin --role Admin \
           --email admin@example.com
     restart: "no"
