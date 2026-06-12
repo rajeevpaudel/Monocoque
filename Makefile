@@ -23,7 +23,7 @@ setup: _ensure-airflow-uid
 	@echo "  make dbt-run                 # build mart tables"
 
 up: _ensure-airflow-uid
-	docker compose up -d
+	docker compose up --build -d
 	$(MAKE) fix-perms
 
 build-up: _ensure-airflow-uid
@@ -33,7 +33,7 @@ build-up: _ensure-airflow-uid
 # Make generated dirs world-writable so the Airflow container (uid 50000) can write freely
 fix-perms:
 	mkdir -p ./dbt/dbt_packages ./dbt/target ./airflow/logs
-	sudo chmod -R 777 ./dbt/dbt_packages ./dbt/target ./airflow/logs
+	sudo chmod -R 777 ./dbt/ ./dbt/target ./airflow/logs
 
 _ensure-airflow-uid:
 	@grep -q "^AIRFLOW_UID=" .env 2>/dev/null || echo "AIRFLOW_UID=50000" >> .env
@@ -48,6 +48,7 @@ reset-data:
 	@echo "Dropping all databases..."
 	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_jolpica"
 	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_openf1"
+	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_f1db"
 	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS dim"
 	@echo "Re-applying migrations..."
 	python clickhouse/migrate.py
@@ -62,6 +63,9 @@ clear-raw:
 		raw_jolpica.seasons raw_jolpica.circuits raw_jolpica.drivers raw_jolpica.constructors \
 		raw_jolpica.races raw_jolpica.results raw_jolpica.qualifying raw_jolpica.sprint_results \
 		raw_jolpica.lap_times raw_jolpica.pit_stops raw_jolpica.driver_standings raw_jolpica.constructor_standings \
+		raw_f1db.seasons raw_f1db.circuits raw_f1db.drivers raw_f1db.constructors \
+		raw_f1db.races raw_f1db.race_results raw_f1db.qualifying_results raw_f1db.sprint_race_results \
+		raw_f1db.pit_stops raw_f1db.fastest_laps raw_f1db.driver_standings raw_f1db.constructor_standings \
 		raw_fastf1.car_telemetry raw_fastf1.distances \
 		raw_meta.ingestion_log; do \
 		docker exec monocoque-clickhouse-1 clickhouse-client --query "TRUNCATE TABLE IF EXISTS $$table"; \
