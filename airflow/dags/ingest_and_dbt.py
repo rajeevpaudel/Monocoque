@@ -116,10 +116,41 @@ def ingest_and_dbt():
 
     @task
     def ingest_jolpica(year: int) -> None:
-        from ingestion.jolpica.backfill import ingest_reference_tables, ingest_season
+        import clickhouse_connect, os
+        from datetime import datetime
 
+        year = int(year)
+        current_year = datetime.now().year
+
+        # Only skip Jolpica for completed seasons where f1db already has data.
+        # For the current/in-progress season, always run Jolpica: the staging
+        # models use a year-level NOT IN, so a single Jolpica round landing would
+        # evict all f1db rows for that year, dropping the rest of the season.
+        if year < current_year:
+            client = clickhouse_connect.get_client(
+                host=os.environ.get("CLICKHOUSE_HOST", "clickhouse"),
+                port=int(os.environ.get("CLICKHOUSE_PORT", 8123)),
+                username=os.environ.get("CLICKHOUSE_USER", "default"),
+                password=os.environ.get("CLICKHOUSE_PASSWORD", ""),
+            )
+            f1db_count = client.query(
+                "SELECT count() FROM raw_f1db.race_results WHERE year = {year:UInt16}",
+                parameters={"year": year},
+            ).result_rows[0][0]
+            lap_times_count = client.query(
+                "SELECT count() FROM raw_jolpica.lap_times WHERE season = {year:UInt16}",
+                parameters={"year": year},
+            ).result_rows[0][0]
+            if f1db_count > 0 and lap_times_count > 0:
+                import structlog
+                structlog.get_logger().info(
+                    "skipping jolpica API — f1db and lap times already present", year=year
+                )
+                return
+
+        from ingestion.jolpica.backfill import ingest_reference_tables, ingest_season
         ingest_reference_tables()
-        ingest_season(int(year))
+        ingest_season(year)
 
     @task
     def ingest_openf1(year: int, skip_telemetry: bool) -> None:
@@ -220,7 +251,8 @@ def ingest_and_dbt():
         token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
         chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
         if not token or not chat_id:
-            raise RuntimeError("TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID must be set")
+            print("Telegram not configured — skipping notification")
+            return
 
         year = context["params"]["year"]
 
