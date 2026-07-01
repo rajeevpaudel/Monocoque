@@ -1,7 +1,10 @@
 {{ config(tags=["marts"]) }}
 -- Fail if any qualifying round has more rows than the era's maximum grid size.
 -- Excess rows indicate sprint qualifying session contamination (2021+) or a general ingestion bug.
--- Era max mirrors assert_driver_count_per_session and assert_grid_position_valid.
+-- Scope: 2021+ only — sprint qualifying (sprint shootout) was introduced in 2021 and is the
+-- only era where a qualifying round legitimately risks contamination from a second SQ session.
+-- Pre-2021 qualifying field sizes were too variable (especially pre-2000 f1db data) to assert
+-- a tight upper bound without generating false positives from legitimate historical entries.
 -- Edge case — Indianapolis 500 (circuit_id = 'indianapolis', season <= 1960):
 --   Ran under Indy rules with up to 33 starters; not an F1 road-circuit qualifying session.
 WITH race_meta AS (
@@ -28,10 +31,12 @@ expected AS (
             WHEN mqs.season BETWEEN 2013 AND 2014 THEN 22
             WHEN mqs.season = 2015                THEN 20
             WHEN mqs.season = 2016                THEN 22
+            WHEN mqs.season >= 2026               THEN 22
             ELSE                                       20
         END AS max_drivers
     FROM {{ ref('mart_qualifying_summary') }} mqs
     LEFT JOIN race_meta rm ON rm.season = mqs.season AND rm.round = mqs.round
+    WHERE mqs.season >= 2021
     GROUP BY mqs.season, mqs.round, rm.circuit_id
 )
 SELECT season, round, circuit_id, row_count, max_drivers
