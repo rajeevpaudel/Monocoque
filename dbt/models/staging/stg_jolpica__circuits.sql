@@ -1,25 +1,42 @@
--- Aggregate to one row per circuit_id: raw table is a plain MergeTree that accumulates
--- duplicate rows across re-ingests, so MAX() ensures non-null values win.
+-- Jolpica rows — deduplicated by circuit_id across re-ingests
 SELECT
     circuit_id,
-    any(circuit_name)           AS circuit_name,
-    any(locality)               AS locality,
-    any(country)                AS country,
-    toFloat32(any(lat))         AS latitude,
-    toFloat32(any(lng))         AS longitude,
-    any(alt)                    AS altitude_m,
-    any(url)                    AS url,
-    -- Prefer the explicit column (populated on new ingests after migration 004).
-    -- Fall back to JSONExtract for rows ingested before the column was added.
+    any(circuit_name)   AS circuit_name,
+    any(locality)       AS locality,
+    any(country)        AS country,
+    toFloat32(any(lat)) AS latitude,
+    toFloat32(any(lng)) AS longitude,
+    any(alt)            AS altitude_m,
+    any(url)            AS url,
     MAX(COALESCE(
         length_km,
         toFloat32OrNull(nullIf(JSONExtractString(_raw_json, 'length'), ''))
-    ))                          AS length_km,
+    ))                  AS length_km,
     MAX(COALESCE(
         corners,
         toUInt8OrNull(nullIf(JSONExtractString(_raw_json, 'turns'), ''))
-    ))                          AS corners,
-    max(_ingested_at)           AS _ingested_at,
-    'jolpica'                   AS _source
+    ))                  AS corners,
+    max(_ingested_at)   AS _ingested_at,
+    'jolpica'           AS _source
 FROM {{ source('raw_jolpica', 'circuits') }}
 GROUP BY circuit_id
+
+UNION ALL
+
+-- f1db circuits not already in jolpica (IDs differ: 'red-bull-ring' vs 'red_bull_ring').
+-- Both are kept so fact rows from each source can resolve their circuit_id.
+SELECT
+    circuit_id,
+    name            AS circuit_name,
+    place_name      AS locality,
+    country_id      AS country,
+    toFloat32(lat)  AS latitude,
+    toFloat32(lng)  AS longitude,
+    NULL            AS altitude_m,
+    ''              AS url,
+    length_km,
+    turns           AS corners,
+    _ingested_at,
+    'f1db'          AS _source
+FROM {{ source('raw_f1db', 'circuits') }}
+WHERE circuit_id NOT IN (SELECT DISTINCT circuit_id FROM {{ source('raw_jolpica', 'circuits') }})

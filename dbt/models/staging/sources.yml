@@ -73,6 +73,23 @@ sources:
       - name: location
       - name: team_radio
 
+  - name: raw_f1db
+    database: raw_f1db
+    schema: raw_f1db
+    tables:
+      - name: seasons
+      - name: circuits
+      - name: drivers
+      - name: constructors
+      - name: races
+      - name: race_results
+      - name: qualifying_results
+      - name: sprint_race_results
+      - name: pit_stops
+      - name: fastest_laps
+      - name: driver_standings
+      - name: constructor_standings
+
   - name: raw_fastf1
     database: raw_fastf1
     schema: raw_fastf1
