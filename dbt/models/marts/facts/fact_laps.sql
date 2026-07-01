@@ -32,9 +32,10 @@ LEFT JOIN {{ ref('driver_id_map') }}  m
     ON  m.jolpica_driver_id = jl.driver_id
     AND m.season            = jl.season
 LEFT JOIN {{ ref('int_session_map') }}          sm
-    ON  sm.season       = jl.season
-    AND sm.round        = jl.round
-    AND sm.session_type = 'Race'
+    ON  sm.season        = jl.season
+    AND sm.round         = jl.round
+    AND sm.session_type  = 'Race'
+    AND sm.session_name  = 'Race'
 LEFT JOIN {{ ref('stg_openf1__laps') }}         ol
     ON  ol.session_key   = sm.session_key
     AND ol.driver_number = m.openf1_driver_number
