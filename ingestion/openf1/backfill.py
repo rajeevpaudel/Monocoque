@@ -16,6 +16,7 @@ import structlog
 
 from ingestion.openf1 import driver_map as dm
 from ingestion.openf1 import endpoints
+from ingestion.openf1.client import OpenF1APIError
 from ingestion.shared import clickhouse as ch
 from ingestion.shared import ingestion_log as log_util
 
@@ -73,9 +74,13 @@ def ingest_session(session_key: int, skip_telemetry: bool = False) -> bool:
                 ch.insert_rows(table, [_model_to_dict(r) for r in rows])
             log_util.record(log_util.SOURCE_OPENF1, entity_key, table, count)
             slog.info("ingested", table=table, count=count)
+        except OpenF1APIError as e:
+            log_util.record(log_util.SOURCE_OPENF1, entity_key, table, 0, str(e))
+            slog.error("openf1 api unavailable — session will be marked incomplete", table=table, error=str(e))
+            all_ok = False
         except Exception as e:
             log_util.record(log_util.SOURCE_OPENF1, entity_key, table, 0, str(e))
-            slog.warning("failed", table=table, error=str(e))
+            slog.error("unexpected failure ingesting table", table=table, error=str(e), exc_info=True)
             all_ok = False
 
     return all_ok
@@ -85,16 +90,37 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
     ylog = log.bind(year=year)
     ylog.info("fetching sessions")
 
-    sessions = endpoints.get_sessions(year)
+    try:
+        sessions = endpoints.get_sessions(year)
+    except OpenF1APIError as e:
+        ylog.error(
+            "cannot fetch sessions — OpenF1 API unavailable; if a live session is in "
+            "progress, re-run this after it ends",
+            year=year,
+            error=str(e),
+        )
+        raise
     now = datetime.now(timezone.utc)
 
+    live = [s for s in sessions if s.status == "started"]
     complete = [
         s for s in sessions
         if s.date_end and datetime.fromisoformat(s.date_end.replace("Z", "+00:00")) < now
+        and s.status != "started"
     ]
 
+    if live:
+        for s in live:
+            ylog.warning(
+                "skipping live session — OpenF1 API is unreliable during active sessions; "
+                "re-run ingest after the session ends",
+                session_key=s.session_key,
+                session_name=s.session_name,
+                status=s.status,
+            )
+
     ch.insert_rows("raw_openf1.sessions", [_model_to_dict(s) for s in sessions])
-    ylog.info("sessions stored", total=len(sessions), complete=len(complete))
+    ylog.info("sessions stored", total=len(sessions), complete=len(complete), live=len(live))
 
     try:
         dm.build_driver_map(year)
@@ -107,7 +133,7 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
         want_telemetry = not skip_telemetry and session.session_type in _TELEMETRY_TYPES
         ingest_session(session.session_key, skip_telemetry=not want_telemetry)
 
-    ylog.info("year done", sessions=len(complete))
+    ylog.info("year done", sessions=len(complete), skipped_live=len(live))
 
 
 def main():

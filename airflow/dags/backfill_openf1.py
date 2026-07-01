@@ -15,6 +15,7 @@ from airflow.models.param import Param
     schedule=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
+    render_template_as_native_obj=True,
     tags=["openf1", "backfill"],
     params={
         "start_year": Param(2023, type="integer"),

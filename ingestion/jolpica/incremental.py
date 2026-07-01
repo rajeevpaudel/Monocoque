@@ -36,8 +36,9 @@ def ingest_round(season: int, round_num: int):
             if rows:
                 ch.insert_rows(table, [_model_to_dict(r) for r in rows])
                 rlog.info("inserted", table=table, count=len(rows))
-        except Exception as e:
-            rlog.warning("failed", table=table, error=str(e))
+        except Exception:
+            rlog.exception("failed", table=table)
+            raise
 
     rlog.info("incremental load done")
 

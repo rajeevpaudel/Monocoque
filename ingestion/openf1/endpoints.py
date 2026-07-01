@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from ingestion.openf1.client import TooLargeError, get, raw
+from ingestion.openf1.client import OpenF1APIError, TooLargeError, get, raw  # noqa: F401 — re-exported for callers
 from ingestion.shared.models import (
     OpenF1CarData,
     OpenF1Driver,

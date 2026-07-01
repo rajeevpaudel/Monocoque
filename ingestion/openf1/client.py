@@ -31,6 +31,13 @@ class TooLargeError(Exception):
     """Raised when OpenF1 returns 422 (request too large to serve at once)."""
 
 
+class OpenF1APIError(Exception):
+    """Raised when OpenF1 is unreachable after all retries.
+
+    Commonly caused by the API being under load during a live session.
+    """
+
+
 def _build_url(base: str, params: dict[str, Any]) -> str:
     """Build URL keeping comparison operators (>=, <=, >, <) literal in param names.
 
@@ -78,6 +85,19 @@ def get(endpoint: str, params: dict[str, Any] | None = None) -> list[dict]:
         except TooLargeError:
             raise  # never retry 422 — the same request will always fail
         except httpx.HTTPStatusError as e:
+            if e.response.status_code == 401:
+                # OpenF1 returns 401 with a JSON detail when a live session is in
+                # progress — the entire API is locked until the session ends.
+                # Retrying is pointless; surface the API's own message immediately.
+                try:
+                    detail = e.response.json().get("detail", "")
+                except Exception:
+                    detail = ""
+                msg = f"OpenF1 API returned 401 for {url}"
+                if detail:
+                    msg += f": {detail}"
+                log.error("openf1 access denied — live session in progress", url=url, detail=detail)
+                raise OpenF1APIError(msg) from e
             last_exc = e
             if attempt < _MAX_RETRIES - 1:
                 # 429 needs a much longer back-off than other errors
@@ -103,7 +123,25 @@ def get(endpoint: str, params: dict[str, Any] | None = None) -> list[dict]:
                 )
                 time.sleep(wait)
 
-    raise last_exc
+    # All retries exhausted — build a descriptive error with a live-session hint
+    # for 5xx / timeout failures, which are the most common cause.
+    status_code = None
+    if isinstance(last_exc, httpx.HTTPStatusError):
+        status_code = last_exc.response.status_code
+
+    hint = (
+        " The OpenF1 API is often slow or returns 5xx during a live session — "
+        "retry once the session has finished."
+        if (status_code is None or status_code >= 500)
+        else ""
+    )
+    msg = (
+        f"OpenF1 request failed after {_MAX_RETRIES} attempts: {url}"
+        + (f" (HTTP {status_code})" if status_code else f" ({type(last_exc).__name__}: {last_exc})")
+        + hint
+    )
+    log.error("openf1 api unavailable", url=url, attempts=_MAX_RETRIES, status=status_code)
+    raise OpenF1APIError(msg) from last_exc
 
 
 def raw(obj: Any) -> str:

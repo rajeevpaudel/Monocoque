@@ -8,7 +8,6 @@ and triggers re-ingestion DAGs for known fixable failures.
 
 import json
 import os
-import re
 import subprocess
 from datetime import datetime, timedelta
 
@@ -18,22 +17,6 @@ from airflow.decorators import dag, task
 DBT_DIR = "/opt/airflow/dbt"
 DBT_PROFILES_DIR = "/opt/airflow/dbt"
 
-
-def classify_failures(
-    failures: list[dict],
-) -> tuple[list[dict], list[dict]]:
-    """Split failures into fixable (auto-trigger) and needs-investigation (alert only)."""
-    fixable = []
-    investigate = []
-    for f in failures:
-        test = f.get("test_name", "")
-        if test == "assert_match_rate" and f.get("session_key"):
-            fixable.append({**f, "action": "reingest_session", "session_key": f["session_key"]})
-        elif test == "assert_dim_sessions_coverage" and f.get("season"):
-            fixable.append({**f, "action": "reingest_jolpica", "season": f["season"], "round": f.get("round")})
-        else:
-            investigate.append(f)
-    return fixable, investigate
 
 
 @dag(
@@ -96,10 +79,17 @@ def dq_monitor():
 
     @task
     def parse_and_act(test_results: dict) -> None:
-        bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
-        chat_id = os.environ["TELEGRAM_CHAT_ID"]
+        bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
 
         failures = test_results.get("failures", [])
+
+        if not bot_token or not chat_id:
+            if failures:
+                print(f"Telegram not configured — {len(failures)} test failure(s) not alerted")
+                for f in failures:
+                    print(f"  FAIL: {f.get('test_name')} — {f.get('message', '')[:200]}")
+            return
 
         if not failures:
             from dq_telegram import send_daily_ok
@@ -122,21 +112,6 @@ def dq_monitor():
 
         from dq_telegram import send_alert
         send_alert(failures, bot_token=bot_token, chat_id=chat_id)
-
-        from airflow.api.common.trigger_dag import trigger_dag as _trigger_dag
-
-        fixable, _ = classify_failures(failures)
-        for item in fixable:
-            if item["action"] == "reingest_session":
-                _trigger_dag(
-                    dag_id="session_openf1",
-                    conf={"session_key": item["session_key"]},
-                )
-            elif item["action"] == "reingest_jolpica":
-                _trigger_dag(
-                    dag_id="backfill_jolpica",
-                    conf={"start_season": item["season"], "end_season": item["season"]},
-                )
 
     freshness = run_dbt_freshness()
     tests = run_dbt_tests()
