@@ -10,7 +10,7 @@ and skipped on subsequent runs.
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -100,7 +100,7 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
             error=str(e),
         )
         raise
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     live = [s for s in sessions if s.status == "started"]
     complete = [
@@ -119,6 +119,7 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
                 status=s.status,
             )
 
+    ch.delete_rows("raw_openf1.sessions", f"year = {year}")
     ch.insert_rows("raw_openf1.sessions", [_model_to_dict(s) for s in sessions])
     ylog.info("sessions stored", total=len(sessions), complete=len(complete), live=len(live))
 
