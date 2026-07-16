@@ -68,3 +68,34 @@ def test_ingest_season_deletes_before_reinserting():
     mock_ch.delete_rows.assert_any_call(
         "raw_jolpica.results", "season = 2025 AND round = 1"
     )
+
+
+def test_ingest_round_records_failed_and_returns_false():
+    """If a table's fetch raises, ingest_round logs 'failed' and returns False
+    instead of silently succeeding — this is what the weekly DAG's task result
+    depends on to actually fail the Airflow task."""
+    with patch("ingestion.jolpica.backfill.log_util.needs_ingestion", return_value=True), \
+         patch("ingestion.jolpica.backfill.log_util.record") as mock_record, \
+         patch("ingestion.jolpica.backfill.endpoints") as mock_ep, \
+         patch("ingestion.jolpica.backfill.ch"):
+        mock_ep.get_results.side_effect = RuntimeError("API timeout")
+        mock_ep.get_qualifying.return_value = []
+        mock_ep.get_sprint.return_value = []
+        mock_ep.get_laps.return_value = []
+        mock_ep.get_pit_stops.return_value = []
+        mock_ep.get_driver_standings.return_value = []
+        mock_ep.get_constructor_standings.return_value = []
+        from ingestion.jolpica import backfill
+        result = backfill.ingest_round(2025, 4)
+    results_calls = [c for c in mock_record.call_args_list if c[0][2] == "raw_jolpica.results"]
+    assert len(results_calls) == 1
+    assert results_calls[0][0][4] != ""  # error_msg is non-empty
+    assert result is False
+
+
+def test_incremental_ingest_round_delegates_to_backfill():
+    """ingestion.jolpica.incremental.ingest_round must be the same function as
+    backfill.ingest_round — the weekly DAG's re-run duplication and lack of
+    ingestion_log tracking was fixed by consolidating on one implementation."""
+    from ingestion.jolpica import backfill, incremental
+    assert incremental.ingest_round is backfill.ingest_round
