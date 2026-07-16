@@ -31,6 +31,8 @@ jobs:
         image: clickhouse/clickhouse-server:26.3
         ports:
           - 8123:8123
+        env:
+          CLICKHOUSE_SKIP_USER_SETUP: "1"
         options: >-
           --health-cmd "wget -qO- http://localhost:8123/ping || exit 1"
           --health-interval 5s
@@ -64,5 +66,3 @@ jobs:
       - name: dbt parse
         working-directory: dbt
         run: dbt parse --profiles-dir .
-        # Catches Jinja/SQL syntax errors and ref()/source() resolution
-        # mistakes across all 40+ models without needing seeded data.
