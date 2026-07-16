@@ -57,6 +57,12 @@ def delete_rows(table: str, where: str) -> None:
     log.info("deleted rows", table=table, where=where)
 
 
+def truncate_table(table: str) -> None:
+    """Empty a table entirely — for full-dump sources with no natural delete key."""
+    get_client().command(f"TRUNCATE TABLE IF EXISTS {table}")
+    log.info("truncated table", table=table)
+
+
 def query_one(sql: str, parameters: dict | None = None) -> Any:
     """Return the first value of the first row."""
     result = get_client().query(sql, parameters=parameters or {})

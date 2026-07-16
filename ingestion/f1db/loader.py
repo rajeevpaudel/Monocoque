@@ -6,6 +6,10 @@ updated after each race weekend. It uses different driver/constructor IDs
 from Jolpica (e.g. 'lewis-hamilton' vs Jolpica's 'hamilton'), so data
 lands in raw_f1db.* rather than raw_jolpica.*.
 
+Each release is a full dump, not a delta — every loader truncates its target
+table before inserting, so re-running (e.g. to pick up a new release) never
+duplicates rows.
+
 Usage:
     python -m ingestion.f1db.loader                     # latest release
     python -m ingestion.f1db.loader --release v2026.6.1
@@ -74,6 +78,7 @@ def _open_csv(zf: zipfile.ZipFile, name: str):
 
 def load_seasons(zf: zipfile.ZipFile) -> None:
     rows = [{"year": int(r["year"])} for r in _open_csv(zf, "f1db-seasons.csv")]
+    ch.truncate_table("raw_f1db.seasons")
     ch.insert_rows("raw_f1db.seasons", rows)
     log.info("loaded", table="seasons", count=len(rows))
 
@@ -91,6 +96,7 @@ def load_circuits(zf: zipfile.ZipFile) -> None:
             "length_km":  _float(r.get("length", "")),
             "turns":      _int(r.get("turns", "")),
         })
+    ch.truncate_table("raw_f1db.circuits")
     ch.insert_rows("raw_f1db.circuits", rows)
     log.info("loaded", table="circuits", count=len(rows))
 
@@ -107,6 +113,7 @@ def load_drivers(zf: zipfile.ZipFile) -> None:
             "date_of_birth":    _str(r.get("dateOfBirth", "")),
             "nationality":      r.get("nationalityCountryId", ""),
         })
+    ch.truncate_table("raw_f1db.drivers")
     ch.insert_rows("raw_f1db.drivers", rows)
     log.info("loaded", table="drivers", count=len(rows))
 
@@ -119,6 +126,7 @@ def load_constructors(zf: zipfile.ZipFile) -> None:
             "name":           r["name"],
             "country_id":     r.get("countryId", ""),
         })
+    ch.truncate_table("raw_f1db.constructors")
     ch.insert_rows("raw_f1db.constructors", rows)
     log.info("loaded", table="constructors", count=len(rows))
 
@@ -135,11 +143,13 @@ def load_races(zf: zipfile.ZipFile) -> None:
             "time":       _str(r.get("time", "")),
             "laps":       _int(r.get("laps", "")),
         })
+    ch.truncate_table("raw_f1db.races")
     ch.insert_rows("raw_f1db.races", rows)
     log.info("loaded", table="races", count=len(rows))
 
 
 def _load_results(zf: zipfile.ZipFile, filename: str, table: str) -> None:
+    ch.truncate_table(table)
     rows: list[dict] = []
     total = 0
     for r in _open_csv(zf, filename):
@@ -176,6 +186,7 @@ def load_sprint_race_results(zf: zipfile.ZipFile) -> None:
 
 
 def load_qualifying_results(zf: zipfile.ZipFile) -> None:
+    ch.truncate_table("raw_f1db.qualifying_results")
     rows: list[dict] = []
     total = 0
     for r in _open_csv(zf, "f1db-races-qualifying-results.csv"):
@@ -204,6 +215,7 @@ def load_qualifying_results(zf: zipfile.ZipFile) -> None:
 
 
 def load_pit_stops(zf: zipfile.ZipFile) -> None:
+    ch.truncate_table("raw_f1db.pit_stops")
     rows: list[dict] = []
     total = 0
     for r in _open_csv(zf, "f1db-races-pit-stops.csv"):
@@ -227,6 +239,7 @@ def load_pit_stops(zf: zipfile.ZipFile) -> None:
 
 
 def load_fastest_laps(zf: zipfile.ZipFile) -> None:
+    ch.truncate_table("raw_f1db.fastest_laps")
     rows: list[dict] = []
     total = 0
     for r in _open_csv(zf, "f1db-races-fastest-laps.csv"):
@@ -251,6 +264,7 @@ def load_fastest_laps(zf: zipfile.ZipFile) -> None:
 
 
 def load_driver_standings(zf: zipfile.ZipFile) -> None:
+    ch.truncate_table("raw_f1db.driver_standings")
     rows: list[dict] = []
     total = 0
     for r in _open_csv(zf, "f1db-races-driver-standings.csv"):
@@ -273,6 +287,7 @@ def load_driver_standings(zf: zipfile.ZipFile) -> None:
 
 
 def load_constructor_standings(zf: zipfile.ZipFile) -> None:
+    ch.truncate_table("raw_f1db.constructor_standings")
     rows: list[dict] = []
     total = 0
     for r in _open_csv(zf, "f1db-races-constructor-standings.csv"):
