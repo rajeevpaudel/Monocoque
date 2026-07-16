@@ -51,7 +51,12 @@ def weekly_jolpica():
     def ingest_results(race_info: dict):
         from ingestion.jolpica.incremental import ingest_round
 
-        ingest_round(race_info["season"], race_info["round"])
+        all_ok = ingest_round(race_info["season"], race_info["round"])
+        if not all_ok:
+            raise RuntimeError(
+                f"one or more tables failed for {race_info['season']} round "
+                f"{race_info['round']} — see raw_meta.ingestion_log"
+            )
 
     trigger_dbt = TriggerDagRunOperator(
         task_id="trigger_dbt",

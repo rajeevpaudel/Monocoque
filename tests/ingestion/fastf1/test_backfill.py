@@ -1,12 +1,11 @@
-import json
 import os
 import tempfile
 from unittest.mock import patch
 
 from ingestion.fastf1.backfill import (
     _load_checkpoint,
-    _save_checkpoint,
     _resolve_session_key,
+    _save_checkpoint,
 )
 
 

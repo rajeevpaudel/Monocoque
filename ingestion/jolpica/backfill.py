@@ -54,6 +54,52 @@ _SEASON_TABLES = [
 ]
 
 
+def _round_tables(season: int) -> list[tuple[str, callable]]:
+    return [
+        ("raw_jolpica.results",               lambda rnd: endpoints.get_results(season, rnd)),
+        ("raw_jolpica.qualifying",            lambda rnd: endpoints.get_qualifying(season, rnd)),
+        ("raw_jolpica.sprint_results",        lambda rnd: endpoints.get_sprint(season, rnd)),
+        ("raw_jolpica.lap_times",             lambda rnd: endpoints.get_laps(season, rnd)),
+        ("raw_jolpica.pit_stops",             lambda rnd: endpoints.get_pit_stops(season, rnd)),
+        ("raw_jolpica.driver_standings",      lambda rnd: endpoints.get_driver_standings(season, rnd)),
+        ("raw_jolpica.constructor_standings", lambda rnd: endpoints.get_constructor_standings(season, rnd)),
+    ]
+
+
+def ingest_round(season: int, rnd: int, rlog=None) -> bool:
+    """
+    Ingest one race weekend's per-round tables (results, qualifying, laps, etc).
+    - Skips tables already marked 'ok'/'empty' in raw_meta.ingestion_log.
+    - Deletes stale (season, round) rows before re-inserting, so re-running a
+      round never duplicates rows.
+    Returns True if no table ended in a failed fetch/insert.
+    """
+    rlog = rlog or log.bind(season=season, round=rnd)
+    entity_key = f"{season}-{rnd}"
+    all_ok = True
+
+    for table, fetch_fn in _round_tables(season):
+        if not log_util.needs_ingestion(log_util.SOURCE_JOLPICA, entity_key, table):
+            rlog.debug("skipping — already complete", table=table)
+            continue
+
+        ch.delete_rows(table, f"season = {season} AND round = {rnd}")
+        try:
+            rows = fetch_fn(rnd)
+            count = len(rows) if rows else 0
+            if rows:
+                ch.insert_rows(table, [_model_to_dict(r) for r in rows])
+            log_util.record(log_util.SOURCE_JOLPICA, entity_key, table, count)
+            rlog.info("ingested", table=table, count=count)
+        except Exception as e:
+            log_util.record(log_util.SOURCE_JOLPICA, entity_key, table, 0, str(e))
+            rlog.warning("failed", table=table, error=str(e))
+            all_ok = False
+
+    rlog.info("round done", all_ok=all_ok)
+    return all_ok
+
+
 def ingest_season(season: int) -> None:
     slog = log.bind(season=season)
     slog.info("starting season")
@@ -66,39 +112,8 @@ def ingest_season(season: int) -> None:
     ch.insert_rows("raw_jolpica.races", [_model_to_dict(r) for r in races])
     slog.info("races stored", count=len(races))
 
-    _ROUND_TABLES = [
-        ("raw_jolpica.results",               lambda rnd: endpoints.get_results(season, rnd)),
-        ("raw_jolpica.qualifying",            lambda rnd: endpoints.get_qualifying(season, rnd)),
-        ("raw_jolpica.sprint_results",        lambda rnd: endpoints.get_sprint(season, rnd)),
-        ("raw_jolpica.lap_times",             lambda rnd: endpoints.get_laps(season, rnd)),
-        ("raw_jolpica.pit_stops",             lambda rnd: endpoints.get_pit_stops(season, rnd)),
-        ("raw_jolpica.driver_standings",      lambda rnd: endpoints.get_driver_standings(season, rnd)),
-        ("raw_jolpica.constructor_standings", lambda rnd: endpoints.get_constructor_standings(season, rnd)),
-    ]
-
     for race in races:
-        rnd = race.round
-        entity_key = f"{season}-{rnd}"
-        rlog = slog.bind(round=rnd)
-
-        for table, fetch_fn in _ROUND_TABLES:
-            if not log_util.needs_ingestion(log_util.SOURCE_JOLPICA, entity_key, table):
-                rlog.debug("skipping — already complete", table=table)
-                continue
-
-            ch.delete_rows(table, f"season = {season} AND round = {rnd}")
-            try:
-                rows = fetch_fn(rnd)
-                count = len(rows) if rows else 0
-                if rows:
-                    ch.insert_rows(table, [_model_to_dict(r) for r in rows])
-                log_util.record(log_util.SOURCE_JOLPICA, entity_key, table, count)
-                rlog.info("ingested", table=table, count=count)
-            except Exception as e:
-                log_util.record(log_util.SOURCE_JOLPICA, entity_key, table, 0, str(e))
-                rlog.warning("failed", table=table, error=str(e))
-
-        rlog.info("round done")
+        ingest_round(season, race.round, rlog=slog.bind(round=race.round))
 
     slog.info("season done")
 
