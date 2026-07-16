@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock, patch
-import pytest
+
 from ingestion.shared import ingestion_log as il
 
 

@@ -5,7 +5,7 @@ entity_key format:
   OpenF1 sessions : str(session_key)   e.g. "9900"
   Jolpica rounds  : "season-round"     e.g. "2025-4"
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ingestion.shared import clickhouse as ch
 
@@ -62,7 +62,7 @@ def record(
         "row_count": row_count,
         "min_expected": _MIN_ROWS.get(table, 0),
         "error_msg": error_msg,
-        "attempted_at": datetime.now(timezone.utc),
+        "attempted_at": datetime.now(UTC),
     }])
 
 

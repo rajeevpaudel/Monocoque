@@ -57,6 +57,7 @@ def _delete_year_from_facts(year: int) -> None:
     incremental dbt run without requiring a manual --full-refresh.
     """
     import os
+
     import clickhouse_connect
 
     client = clickhouse_connect.get_client(
@@ -116,8 +117,10 @@ def ingest_and_dbt():
 
     @task
     def ingest_jolpica(year: int) -> None:
-        import clickhouse_connect, os
+        import os
         from datetime import datetime
+
+        import clickhouse_connect
 
         year = int(year)
         current_year = datetime.now().year
@@ -162,8 +165,14 @@ def ingest_and_dbt():
     @task
     def ingest_fastf1(year: int) -> None:
         import os
+
         import clickhouse_connect
-        from ingestion.fastf1.backfill import IDENTIFIER_TO_SESSION_TYPES, _build_session_index, ingest_year
+
+        from ingestion.fastf1.backfill import (
+            IDENTIFIER_TO_SESSION_TYPES,
+            _build_session_index,
+            ingest_year,
+        )
 
         year = int(year)
 

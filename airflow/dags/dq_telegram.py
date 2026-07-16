@@ -1,6 +1,5 @@
 import httpx
 
-
 TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 
 

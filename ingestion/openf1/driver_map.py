@@ -10,7 +10,7 @@ Usage:
 """
 
 import argparse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 
@@ -62,7 +62,7 @@ def build_driver_map(year: int):
             "jolpica_driver_id": driver_id,
             "openf1_driver_number": number,
             "season": year,
-            "updated_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(UTC),
         }
         for number, driver_id in number_map.items()
     ]

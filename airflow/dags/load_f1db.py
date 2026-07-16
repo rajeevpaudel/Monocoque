@@ -73,6 +73,7 @@ def load_f1db():
     def load_reference(zip_path: str) -> None:
         """seasons, circuits, drivers, constructors"""
         import zipfile
+
         from ingestion.f1db.loader import (
             load_circuits,
             load_constructors,
@@ -90,6 +91,7 @@ def load_f1db():
     def load_race_data(zip_path: str) -> None:
         """races, race_results, qualifying_results, sprint_race_results"""
         import zipfile
+
         from ingestion.f1db.loader import (
             load_qualifying_results,
             load_race_results,
@@ -107,6 +109,7 @@ def load_f1db():
     def load_supplementary(zip_path: str) -> None:
         """pit_stops, fastest_laps, driver_standings, constructor_standings"""
         import zipfile
+
         from ingestion.f1db.loader import (
             load_constructor_standings,
             load_driver_standings,
