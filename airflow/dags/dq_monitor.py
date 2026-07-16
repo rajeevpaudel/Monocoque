@@ -13,10 +13,22 @@ from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
 
-
 DBT_DIR = "/opt/airflow/dbt"
 DBT_PROFILES_DIR = "/opt/airflow/dbt"
 
+
+def parse_run_results(run_results: dict) -> list[dict]:
+    """Extract fail/error test results from a parsed dbt run_results.json."""
+    failures = []
+    for r in run_results.get("results", []):
+        if r.get("status") in ("fail", "error"):
+            failures.append({
+                "test_name": r.get("unique_id", "unknown").split(".")[-1],
+                "status": r["status"],
+                "failures": r.get("failures", 0),
+                "message": r.get("message", ""),
+            })
+    return failures
 
 
 @dag(
@@ -56,19 +68,12 @@ def dq_monitor():
             capture_output=True,
             text=True,
         )
-        failures = []
         try:
             with open(f"{DBT_DIR}/target/run_results.json") as f:
                 run_results = json.load(f)
-            for r in run_results.get("results", []):
-                if r.get("status") in ("fail", "error"):
-                    failures.append({
-                        "test_name": r.get("unique_id", "unknown").split(".")[-1],
-                        "status": r["status"],
-                        "failures": r.get("failures", 0),
-                        "message": r.get("message", ""),
-                    })
+            failures = parse_run_results(run_results)
         except Exception as e:
+            failures = []
             failures.append({
                 "test_name": "dbt_test_runner",
                 "status": "error",
@@ -92,8 +97,8 @@ def dq_monitor():
             return
 
         if not failures:
-            from dq_telegram import send_daily_ok
             import clickhouse_connect
+            from dq_telegram import send_daily_ok
             client = clickhouse_connect.get_client(
                 host=os.environ.get("CLICKHOUSE_HOST", "clickhouse")
             )
