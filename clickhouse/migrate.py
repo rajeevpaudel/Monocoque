@@ -6,6 +6,7 @@ literals, so a semicolon inside a string (e.g. a default value) doesn't
 truncate a statement.
 """
 
+import fcntl
 import hashlib
 import os
 from pathlib import Path
@@ -13,6 +14,7 @@ from pathlib import Path
 import clickhouse_connect
 
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+_LOCK_PATH = Path(__file__).parent / ".migrate.lock"
 
 _TRACKING_DB = "raw_meta"
 _TRACKING_TABLE = f"{_TRACKING_DB}.schema_migrations"
@@ -59,13 +61,15 @@ def _mark_applied(client, filename: str, checksum: str) -> None:
 def split_statements(sql: str) -> list[str]:
     """Split a SQL file into statements on top-level semicolons.
 
-    Tracks single/double-quote state and `--` line comments so a semicolon
-    inside a string literal or a comment doesn't split a statement.
+    Tracks single/double-quote state, `--` line comments, and `/* */` block
+    comments so a semicolon inside a string literal or a comment doesn't
+    split a statement.
     """
     statements = []
     buf = []
     quote_char = None
     in_line_comment = False
+    in_block_comment = False
     i = 0
     n = len(sql)
     while i < n:
@@ -74,6 +78,15 @@ def split_statements(sql: str) -> list[str]:
             buf.append(ch)
             if ch == "\n":
                 in_line_comment = False
+            i += 1
+            continue
+        if in_block_comment:
+            buf.append(ch)
+            if ch == "*" and i + 1 < n and sql[i + 1] == "/":
+                buf.append(sql[i + 1])
+                i += 2
+                in_block_comment = False
+                continue
             i += 1
             continue
         if quote_char:
@@ -97,6 +110,11 @@ def split_statements(sql: str) -> list[str]:
             buf.append(ch)
             i += 1
             continue
+        if ch == "/" and i + 1 < n and sql[i + 1] == "*":
+            in_block_comment = True
+            buf.append(ch)
+            i += 1
+            continue
         if ch == ";":
             statements.append("".join(buf))
             buf = []
@@ -109,7 +127,80 @@ def split_statements(sql: str) -> list[str]:
     return statements
 
 
+def _strip_comments(statement: str) -> str:
+    """Remove `--` line comments and `/* */` block comments from a statement
+    body, leaving quoted-string contents untouched (reuses split_statements'
+    quote/comment tracking by scanning char-by-char the same way)."""
+    out = []
+    quote_char = None
+    in_line_comment = False
+    in_block_comment = False
+    i = 0
+    n = len(statement)
+    while i < n:
+        ch = statement[i]
+        if in_line_comment:
+            if ch == "\n":
+                in_line_comment = False
+                out.append(ch)
+            i += 1
+            continue
+        if in_block_comment:
+            if ch == "*" and i + 1 < n and statement[i + 1] == "/":
+                i += 2
+                in_block_comment = False
+                continue
+            i += 1
+            continue
+        if quote_char:
+            out.append(ch)
+            if ch == quote_char:
+                if i + 1 < n and statement[i + 1] == quote_char:
+                    out.append(statement[i + 1])
+                    i += 2
+                    continue
+                quote_char = None
+            i += 1
+            continue
+        if ch in ("'", '"'):
+            quote_char = ch
+            out.append(ch)
+            i += 1
+            continue
+        if ch == "-" and i + 1 < n and statement[i + 1] == "-":
+            in_line_comment = True
+            i += 1
+            continue
+        if ch == "/" and i + 1 < n and statement[i + 1] == "*":
+            in_block_comment = True
+            i += 1
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def run_migrations():
+    # Exclusive, non-blocking lock: two concurrent runs (e.g. overlapping deploys)
+    # would otherwise both see the same file as unapplied and double-apply it,
+    # since the check-then-apply sequence against ClickHouse has no transaction
+    # to make it atomic. Only guards against concurrent runs on the same host —
+    # add a distributed lock if migrations ever run from multiple hosts at once.
+    lock_file = open(_LOCK_PATH, "w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise SystemExit(
+            "Another migrate.py run holds the lock — refusing to run concurrently."
+        )
+    try:
+        _run_migrations_locked()
+    finally:
+        fcntl.flock(lock_file, fcntl.LOCK_UN)
+        lock_file.close()
+
+
+def _run_migrations_locked():
     client = get_client()
     _ensure_tracking_table(client)
     applied = _applied_checksums(client)
@@ -139,8 +230,7 @@ def run_migrations():
         print(f"Applying {path.name}...")
         sql = path.read_text()
         for statement in split_statements(sql):
-            lines = [ln for ln in statement.splitlines() if not ln.strip().startswith("--")]
-            clean = "\n".join(lines).strip()
+            clean = _strip_comments(statement).strip()
             if clean:
                 client.command(clean)
         _mark_applied(client, path.name, checksum)

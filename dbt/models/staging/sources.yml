@@ -71,7 +71,6 @@ sources:
           warn_after: {count: 20, period: day}
           error_after: {count: 40, period: day}
       - name: location
-      - name: team_radio
 
   - name: raw_f1db
     database: raw_f1db
