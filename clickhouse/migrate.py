@@ -186,18 +186,17 @@ def run_migrations():
     # since the check-then-apply sequence against ClickHouse has no transaction
     # to make it atomic. Only guards against concurrent runs on the same host —
     # add a distributed lock if migrations ever run from multiple hosts at once.
-    lock_file = open(_LOCK_PATH, "w")
-    try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        raise SystemExit(
-            "Another migrate.py run holds the lock — refusing to run concurrently."
-        )
-    try:
-        _run_migrations_locked()
-    finally:
-        fcntl.flock(lock_file, fcntl.LOCK_UN)
-        lock_file.close()
+    with open(_LOCK_PATH, "w") as lock_file:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as e:
+            raise SystemExit(
+                "Another migrate.py run holds the lock — refusing to run concurrently."
+            ) from e
+        try:
+            _run_migrations_locked()
+        finally:
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
 
 
 def _run_migrations_locked():

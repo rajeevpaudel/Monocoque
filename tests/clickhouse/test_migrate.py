@@ -55,15 +55,14 @@ def test_strip_comments_preserves_string_literal_contents():
 
 
 def test_run_migrations_refuses_when_lock_already_held():
-    lock_file = open(_LOCK_PATH, "w")
     try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        try:
-            run_migrations()
-            raise AssertionError("expected SystemExit")
-        except SystemExit as e:
-            assert "concurrently" in str(e)
+        with open(_LOCK_PATH, "w") as lock_file:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            try:
+                run_migrations()
+                raise AssertionError("expected SystemExit")
+            except SystemExit as e:
+                assert "concurrently" in str(e)
+            fcntl.flock(lock_file, fcntl.LOCK_UN)
     finally:
-        fcntl.flock(lock_file, fcntl.LOCK_UN)
-        lock_file.close()
         _LOCK_PATH.unlink(missing_ok=True)
