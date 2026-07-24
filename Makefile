@@ -1,22 +1,85 @@
-.PHONY: up down migrate reset-data backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test dbt-docs lint format test
+.PHONY: up down build-up fix-perms migrate reset-data clear-raw clear-all backfill-jolpica backfill-openf1 ingest-year dbt-run dbt-test dbt-docs dbt-docs-serve lint format test setup
 
-up:
-	docker-compose up -d
+setup: _ensure-airflow-uid
+	@echo "--- Creating virtual environment ---"
+	@test -d venv || python3 -m venv venv
+	@echo "--- Installing dependencies ---"
+	venv/bin/pip install -q -e ".[dev]"
+	venv/bin/pip install -q dbt-clickhouse
+	@echo "--- Starting Docker services ---"
+	docker compose up -d
+	$(MAKE) fix-perms
+	@echo "--- Waiting for ClickHouse to be ready ---"
+	@until docker exec monocoque-clickhouse-1 clickhouse-client --query "SELECT 1" > /dev/null 2>&1; do \
+		echo "  ClickHouse not ready yet, retrying..."; sleep 2; \
+	done
+	@echo "--- Applying migrations ---"
+	venv/bin/python clickhouse/migrate.py
+	@echo "--- Installing dbt packages ---"
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt deps --profiles-dir .
+	@echo ""
+	@echo "Setup complete. Next steps:"
+	@echo "  make ingest-year YEAR=2024   # ingest data"
+	@echo "  make dbt-run                 # build mart tables"
+
+up: _ensure-airflow-uid
+	docker compose up --build -d
+	$(MAKE) fix-perms
+
+build-up: _ensure-airflow-uid
+	docker compose up -d --build
+	$(MAKE) fix-perms
+
+# Make generated dirs world-writable so the Airflow container (uid 50000) can write freely
+fix-perms:
+	mkdir -p ./dbt/dbt_packages ./dbt/target ./airflow/logs
+	sudo chmod -R 777 ./dbt/ ./dbt/target ./airflow/logs
+
+_ensure-airflow-uid:
+	@grep -q "^AIRFLOW_UID=" .env 2>/dev/null || echo "AIRFLOW_UID=50000" >> .env
 
 down:
-	docker-compose down
+	docker compose down
 
 migrate:
-	python clickhouse/migrate.py
+	venv/bin/python clickhouse/migrate.py
 
 reset-data:
 	@echo "Dropping all databases..."
-	docker exec f1-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_jolpica"
-	docker exec f1-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_openf1"
-	docker exec f1-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS dim"
+	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_jolpica"
+	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_openf1"
+	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS raw_f1db"
+	docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS dim"
 	@echo "Re-applying migrations..."
 	python clickhouse/migrate.py
 	@echo "Done. All data cleared."
+
+clear-raw:
+	@echo "Truncating all raw tables and resetting ingestion log..."
+	@for table in \
+		raw_openf1.sessions raw_openf1.drivers raw_openf1.laps raw_openf1.pit \
+		raw_openf1.stints raw_openf1.intervals raw_openf1.weather raw_openf1.race_control \
+		raw_openf1.car_data raw_openf1.location \
+		raw_jolpica.seasons raw_jolpica.circuits raw_jolpica.drivers raw_jolpica.constructors \
+		raw_jolpica.races raw_jolpica.results raw_jolpica.qualifying raw_jolpica.sprint_results \
+		raw_jolpica.lap_times raw_jolpica.pit_stops raw_jolpica.driver_standings raw_jolpica.constructor_standings \
+		raw_f1db.seasons raw_f1db.circuits raw_f1db.drivers raw_f1db.constructors \
+		raw_f1db.races raw_f1db.race_results raw_f1db.qualifying_results raw_f1db.sprint_race_results \
+		raw_f1db.pit_stops raw_f1db.fastest_laps raw_f1db.driver_standings raw_f1db.constructor_standings \
+		raw_fastf1.car_telemetry raw_fastf1.distances \
+		raw_meta.ingestion_log; do \
+		docker exec monocoque-clickhouse-1 clickhouse-client --query "TRUNCATE TABLE IF EXISTS $$table"; \
+		echo "  cleared $$table"; \
+	done
+	@echo "Done. Raw tables cleared — ready to re-ingest."
+
+clear-all: clear-raw
+	@echo "Dropping dbt output databases..."
+	@for db in f1_staging f1_intermediate f1_mart; do \
+		docker exec monocoque-clickhouse-1 clickhouse-client --query "DROP DATABASE IF EXISTS $$db"; \
+		echo "  dropped $$db"; \
+	done
+	@echo "Done. Run 'make dbt-run' to rebuild mart tables."
 
 backfill-jolpica:
 	python ingestion/jolpica/backfill.py --start $(START) --end $(END)
@@ -36,14 +99,19 @@ ingest-year:
 	cd dbt && dbt test --profiles-dir .
 
 dbt-run:
-	cd dbt && dbt run --profiles-dir .
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt run --profiles-dir .
 
 dbt-test:
-	cd dbt && dbt test --profiles-dir .
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt test --profiles-dir . --select staging --exclude tag:marts
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt test --profiles-dir . --select marts tag:marts
 
 dbt-docs:
-	cd dbt && dbt docs generate --profiles-dir .
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt docs generate --profiles-dir .
 	cp dbt/target/index.html dbt/target/manifest.json dbt/target/catalog.json dbt/docs/
+
+dbt-docs-serve: dbt-docs
+	@echo "Opening dbt docs at http://localhost:8081"
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt docs serve --profiles-dir . --port 8081
 
 lint:
 	ruff check ingestion/ airflow/

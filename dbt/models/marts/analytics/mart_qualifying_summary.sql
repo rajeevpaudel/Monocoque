@@ -4,9 +4,9 @@
 SELECT
     fq.season               AS season,
     fq.round                AS round,
-    ds.race_name,
-    ds.circuit_name,
-    ds.circuit_country,
+    ds.race_name            AS race_name,
+    ds.circuit_name         AS circuit_name,
+    ds.circuit_country      AS circuit_country,
     ds.location             AS circuit_location,
     ds.date_start           AS qualifying_date,
     fq.driver_id            AS driver_id,
@@ -43,17 +43,18 @@ SELECT
     d.permanent_number,
     d.nationality           AS driver_nationality,
     -- Driver appearance (OpenF1, 2023+ only)
-    od.name_acronym,
-    od.team_name,
+    od.name_acronym         AS name_acronym,
+    od.team_name            AS team_name,
     if(od.team_colour IS NOT NULL AND od.team_colour != '', concat('#', od.team_colour), NULL) AS team_colour,
-    od.headshot_url,
+    od.headshot_url         AS headshot_url,
     -- Constructor
-    c.constructor_name
+    c.constructor_name      AS constructor_name
 FROM {{ ref('fact_qualifying') }}               fq
 LEFT JOIN {{ ref('dim_sessions') }}             ds
     ON  ds.session_key = fq.session_key
 LEFT JOIN {{ ref('dim_drivers') }}              d
     ON  d.driver_id = fq.driver_id
+    AND d.season    = fq.season
 LEFT JOIN (
     -- raw_openf1.drivers can have duplicate rows per (session_key, driver_number)
     -- due to repeated ingestion; deduplicate here before joining.
@@ -71,3 +72,4 @@ LEFT JOIN (
     AND od.driver_number = fq.openf1_driver_number
 LEFT JOIN {{ ref('dim_constructors') }}         c
     ON  c.constructor_id = fq.constructor_id
+    AND c.season         = fq.season

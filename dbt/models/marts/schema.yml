@@ -6,7 +6,11 @@ models:
       - name: driver_id
         tests:
           - not_null
-          - unique
+      - name: is_current
+        tests:
+          - not_null:
+              config:
+                severity: warn
 
   - name: dim_circuits
     columns:
@@ -14,17 +18,65 @@ models:
         tests:
           - not_null
           - unique
+      - name: length_km
+        tests:
+          - not_null:
+              config:
+                severity: warn
+      - name: corners
+        tests:
+          - not_null:
+              config:
+                severity: warn
 
   - name: dim_constructors
     columns:
       - name: constructor_id
         tests:
           - not_null
+      - name: is_current
+        tests:
+          - not_null:
+              config:
+                severity: warn
+
+  - name: dim_sessions
+    columns:
+      - name: session_key
+        tests:
+          - not_null
           - unique
+      - name: circuit_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_circuits')
+                field: circuit_id
+              config:
+                severity: warn
+      - name: race_name
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
 
   - name: fact_race_results
     columns:
-      - name: jolpica_driver_id
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
+      - name: driver_id
         tests:
           - not_null
           - relationships:
@@ -44,34 +96,103 @@ models:
       - name: round
         tests:
           - not_null
+      - name: points
+        tests:
+          - not_null
 
   - name: fact_qualifying
     columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
       - name: driver_id
+        tests:
+          - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: round
         tests:
           - not_null
 
   - name: fact_sprint_results
     columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
       - name: driver_id
         tests:
           - not_null
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
 
-  - name: fact_laps
+  - name: fact_pit_stops
     columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
       - name: driver_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_drivers')
+                field: driver_id
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
+      - name: stop_number
         tests:
           - not_null
       - name: lap_number
         tests:
           - not_null
 
-  - name: dim_sessions
+  - name: fact_laps
     columns:
-      - name: session_key
+      - name: race_sk
         tests:
           - not_null
-          - unique
+          - relationships:
+              arguments:
+                to: ref('dim_races')
+                field: race_sk
+              config:
+                severity: warn
+      - name: driver_id
+        tests:
+          - not_null
+      - name: lap_number
+        tests:
+          - not_null
+      - name: lap_time_ms
+        tests:
+          - not_null
 
   - name: mart_lap_telemetry
     columns:
@@ -85,6 +206,45 @@ models:
         tests:
           - not_null
 
+  - name: dim_races
+    columns:
+      - name: race_sk
+        tests:
+          - not_null
+          - unique
+      - name: season
+        tests:
+          - not_null
+      - name: round
+        tests:
+          - not_null
+      - name: race_name
+        tests:
+          - not_null
+      - name: circuit_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_circuits')
+                field: circuit_id
+              config:
+                severity: warn
+
+  - name: dim_session_drivers
+    columns:
+      - name: session_key
+        tests:
+          - not_null
+      - name: driver_number
+        tests:
+          - not_null
+      - name: driver_code
+        tests:
+          - not_null:
+              config:
+                severity: warn
+
   - name: mart_qualifying_summary
     columns:
       - name: driver_id
@@ -96,4 +256,8 @@ models:
       - name: round
         tests:
           - not_null
-
+      - name: best_source_match
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['matched', 'jolpica_only', 'mismatch']

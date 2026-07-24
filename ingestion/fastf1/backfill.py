@@ -10,8 +10,10 @@ Re-running is safe: completed (year, round, identifier) triples are checkpointed
 import argparse
 import json
 import os
+from collections.abc import Callable
 
 import fastf1
+import fastf1._api
 import structlog
 
 from ingestion.fastf1 import client
@@ -45,8 +47,11 @@ def _load_checkpoint() -> set[str]:
 
 
 def _save_checkpoint(completed: set[str]) -> None:
-    with open(_CHECKPOINT_FILE, "w") as f:
-        json.dump(sorted(completed), f)
+    try:
+        with open(_CHECKPOINT_FILE, "w") as f:
+            json.dump(sorted(completed), f)
+    except PermissionError:
+        pass
 
 
 def _resolve_session_key(
@@ -93,7 +98,11 @@ def _build_session_index(year: int) -> tuple[dict[tuple[int, str], int], list[in
     return index, rounds
 
 
-def ingest_year(year: int, completed: set[str]) -> None:
+def ingest_year(
+    year: int,
+    completed: set[str],
+    on_complete: Callable[[set[str]], None] = _save_checkpoint,
+) -> None:
     ylog = log.bind(year=year)
     ylog.info("building session index from OpenF1")
     index, rounds = _build_session_index(year)
@@ -109,16 +118,16 @@ def ingest_year(year: int, completed: set[str]) -> None:
             if session_key is None:
                 # Session type doesn't exist for this weekend — mark done so we skip next time
                 completed.add(ck)
-                _save_checkpoint(completed)
+                on_complete(completed)
                 continue
 
             slog = ylog.bind(round=round_num, identifier=identifier, session_key=session_key)
             try:
                 arrow_table = client.get_session_telemetry(session_key, year, round_num, identifier)
-            except fastf1.core.SessionNotAvailableError:
+            except fastf1._api.SessionNotAvailableError:
                 slog.info("not available in FastF1 — skipping")
                 completed.add(ck)
-                _save_checkpoint(completed)
+                on_complete(completed)
                 continue
             except Exception as e:
                 slog.warning("failed — will retry next run", error=str(e))
@@ -131,7 +140,7 @@ def ingest_year(year: int, completed: set[str]) -> None:
                 slog.warning("empty telemetry from FastF1")
 
             completed.add(ck)
-            _save_checkpoint(completed)
+            on_complete(completed)
 
 
 def main() -> None:

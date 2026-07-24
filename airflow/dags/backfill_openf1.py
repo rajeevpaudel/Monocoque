@@ -15,6 +15,7 @@ from airflow.models.param import Param
     schedule=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
+    render_template_as_native_obj=True,
     tags=["openf1", "backfill"],
     params={
         "start_year": Param(2023, type="integer"),
@@ -35,19 +36,15 @@ def backfill_openf1():
         _ingest(year, skip_telemetry=skip_telemetry)
 
     @task
-    def generate_years(start: int, end: int) -> list[int]:
-        return list(range(start, end + 1))
+    def generate_years(start: int, end: int, skip_telemetry: bool) -> list[dict]:
+        return [{"year": y, "skip_telemetry": skip_telemetry} for y in range(start, end + 1)]
 
-    generate_years(
+    year_kwargs = generate_years(
         start="{{ params.start_year }}",
         end="{{ params.end_year }}",
+        skip_telemetry="{{ params.skip_telemetry }}",
     )
-    ingest_year.expand_kwargs(
-        [
-            {"year": y, "skip_telemetry": "{{ params.skip_telemetry }}"}
-            for y in [2023]  # placeholder
-        ]
-    )
+    ingest_year.expand_kwargs(year_kwargs)
 
 
 backfill_openf1()

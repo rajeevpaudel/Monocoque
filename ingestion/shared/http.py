@@ -34,10 +34,13 @@ def _rate_limit():
 
 
 def _is_retryable(exc: BaseException) -> bool:
-    """Retry on 429 (rate limit) and 5xx. Never retry on 404 or other 4xx."""
+    """Retry on 429 (rate limit) and 5xx. Never retry on 4xx or non-HTTP errors."""
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code in (429,) or exc.response.status_code >= 500
-    return True
+    # Non-HTTP exceptions (JSON decode errors, connection errors) are not retried:
+    # a JSON decode error on a well-formed request indicates a persistent upstream
+    # bug, not a transient failure, and retrying wastes time.
+    return isinstance(exc, httpx.TransportError)
 
 
 @retry(

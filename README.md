@@ -122,7 +122,29 @@ ORDER BY (session_key, driver_number, date)
 - Docker + Docker Compose v2
 - Python 3.10+
 
-### 1. Start the stack
+### 1. Fix dbt directory permissions
+
+The Airflow container runs as uid `50000` but the `dbt/` directory is owned by your host user.
+dbt needs write access to `dbt/`, `dbt/logs/`, `dbt/dbt_packages/`, and `dbt/target/` to install
+packages and write compiled output. Run once after cloning:
+
+```bash
+mkdir -p dbt/logs dbt/dbt_packages dbt/target
+chmod 777 dbt
+chmod -R 777 dbt/logs dbt/dbt_packages dbt/target
+```
+
+### 2. Build the Airflow image
+
+The project uses a custom Airflow image (`airflow/Dockerfile`) that pre-installs the ingestion
+dependencies (`structlog`, `clickhouse-connect`, `fastf1`, `dbt-clickhouse`, `elementary-data`,
+etc.). Pull the base image and build once — and again whenever `airflow/requirements.txt` changes:
+
+```bash
+docker compose build
+```
+
+### 3. Start the stack
 
 ```bash
 docker compose up -d
@@ -134,7 +156,7 @@ docker compose up -d
 | Airflow UI | http://localhost:8080 (admin / admin) |
 | Metabase | http://localhost:3001 |
 
-### 2. Apply the schema
+### 4. Apply the schema
 
 ```bash
 python clickhouse/migrate.py
@@ -142,7 +164,7 @@ python clickhouse/migrate.py
 
 Safe to re-run. Applies all migrations in order, skipping any already applied.
 
-### 3. Ingest data
+### 5. Ingest data
 
 ```bash
 # Jolpica — historical results, qualifying, standings (1950–present)
@@ -156,7 +178,7 @@ make ingest-year YEAR=2024
 make ingest-year YEAR=2024 SKIP_TELEMETRY=1
 ```
 
-### 4. Run dbt
+### 6. Run dbt
 
 ```bash
 cd dbt
@@ -258,3 +280,5 @@ See [`docs/warehouse-access-guide.md`](docs/warehouse-access-guide.md) for a com
 **Pre-2023 coverage** — OpenF1 telemetry, sector times, speed traps, and GPS are unavailable before 2023. All OpenF1-sourced columns in mart tables are NULL for earlier seasons.
 
 **Jolpica update lag** — Race data is published Monday 06:00 UTC. The weekly Airflow DAG is scheduled accordingly.
+
+**dbt test failures block the pipeline** — `ingest_and_dbt` DAG fails if any dbt test returns `ERROR`. Warnings (e.g. `assert_telemetry_hz`) do not block. If you need to bypass a known data quality failure during development, mark the test as `severity: warn` in the schema YAML.

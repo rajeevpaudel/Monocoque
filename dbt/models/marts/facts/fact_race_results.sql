@@ -2,16 +2,18 @@
 {{
     config(
         materialized='incremental',
-        incremental_strategy='append',
+        incremental_strategy='delete+insert',
+        unique_key=['season', 'round', 'driver_id'],
         engine='MergeTree()',
-        order_by='(season, round, jolpica_driver_id)',
+        order_by='(season, round, driver_id)',
     )
 }}
 
 SELECT
+    toUInt32(season * 100 + round) AS race_sk,
     season,
     round,
-    jolpica_driver_id,
+    driver_id,
     openf1_driver_number,
     constructor_id,
     grid_position,
@@ -28,11 +30,10 @@ SELECT
     of1_s1,
     of1_s2,
     of1_s3,
-    session_key
+    session_key,
+    _ingested_at
 FROM {{ ref('int_driver_race_results') }}
 
 {% if is_incremental() %}
-WHERE (season, round) NOT IN (
-    SELECT season, round FROM {{ this }}
-)
+WHERE _ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
 {% endif %}

@@ -10,8 +10,20 @@ sources:
       - name: constructors
       - name: drivers
       - name: races
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: results
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: qualifying
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: sprint_results
       - name: lap_times
       - name: pit_stops
@@ -23,6 +35,10 @@ sources:
     schema: raw_openf1
     tables:
       - name: sessions
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
         columns:
           - name: session_type
             tests:
@@ -32,23 +48,53 @@ sources:
                              'Practice', 'Practice 1', 'Practice 2', 'Practice 3']
       - name: drivers
       - name: laps
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: pit
       - name: stints
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: intervals
       - name: weather
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: race_control
       - name: car_data
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: location
-      - name: team_radio
 
-  - name: dim
-    database: dim
-    schema: dim
+  - name: raw_f1db
+    database: raw_f1db
+    schema: raw_f1db
     tables:
-      - name: driver_id_map
+      - name: seasons
+      - name: circuits
+      - name: drivers
+      - name: constructors
+      - name: races
+      - name: race_results
+      - name: qualifying_results
+      - name: sprint_race_results
+      - name: pit_stops
+      - name: fastest_laps
+      - name: driver_standings
+      - name: constructor_standings
 
   - name: raw_fastf1
     database: raw_fastf1
     schema: raw_fastf1
     tables:
       - name: car_telemetry
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}

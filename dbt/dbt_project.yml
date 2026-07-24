@@ -2,6 +2,9 @@ name: 'f1_warehouse'
 version: '1.0.0'
 config-version: 2
 
+flags:
+  require_explicit_package_overrides_for_builtin_materializations: false
+
 profile: 'f1_warehouse'
 
 model-paths: ["models"]
@@ -32,3 +35,12 @@ models:
         +materialized: incremental
         +incremental_strategy: append
         +schema: mart
+
+seeds:
+  f1_warehouse:
+    +schema: staging
+
+tests:
+  f1_warehouse:
+    +store_failures: true
+    +schema: test_failures

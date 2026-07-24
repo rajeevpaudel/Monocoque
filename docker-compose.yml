@@ -1,7 +1,9 @@
 version: "3.9"
 
 x-airflow-common: &airflow-common
-  image: apache/airflow:2.9.2-python3.11
+  build: ./airflow
+  image: f1-airflow:local
+  user: "${AIRFLOW_UID:-50000}:0"
   environment: &airflow-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
@@ -10,18 +12,21 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
-    # Pass ClickHouse connection to DAGs
+    PYTHONPATH: /opt/airflow
     CLICKHOUSE_HOST: clickhouse
     CLICKHOUSE_PORT: "8123"
-    CLICKHOUSE_USER: default
-    CLICKHOUSE_PASSWORD: ""
-    CLICKHOUSE_DATABASE: f1
+    CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
+    CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
+    CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-f1}
+    TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
   env_file:
     - .env
   volumes:
     - ./airflow/dags:/opt/airflow/dags
     - ./airflow/plugins:/opt/airflow/plugins
     - ./ingestion:/opt/airflow/ingestion
+    - ./dbt:/opt/airflow/dbt
     - airflow-logs:/opt/airflow/logs
   depends_on:
     postgres:
@@ -29,8 +34,9 @@ x-airflow-common: &airflow-common
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:24.3
+    image: clickhouse/clickhouse-server:26.3
     ports:
+      - "9000:9000"
       - "8123:8123"
     volumes:
       - clickhouse-data:/var/lib/clickhouse
@@ -60,40 +66,40 @@ services:
       timeout: 5s
       retries: 5
 
-  # airflow-init:
-  #   <<: *airflow-common
-  #   entrypoint: /bin/bash
-  #   command:
-  #     - -c
-  #     - |
-  #       airflow db migrate &&
-  #       airflow users create --username admin --password admin \
-  #         --firstname Admin --lastname Admin --role Admin \
-  #         --email admin@example.com
-  #   restart: "no"
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate &&
+        airflow users create --username admin --password ${AIRFLOW_ADMIN_PASSWORD} \
+          --firstname Admin --lastname Admin --role Admin \
+          --email admin@example.com
+    restart: "no"
 
-  # airflow-webserver:
-  #   <<: *airflow-common
-  #   command: webserver
-  #   ports:
-  #     - "8080:8080"
-  #   healthcheck:
-  #     test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 5
-  #   restart: unless-stopped
-  #   depends_on:
-  #     airflow-init:
-  #       condition: service_completed_successfully
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
 
-  # airflow-scheduler:
-  #   <<: *airflow-common
-  #   command: scheduler
-  #   restart: unless-stopped
-  #   depends_on:
-  #     airflow-init:
-  #       condition: service_completed_successfully
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
 
   metabase:
     image: metabase/metabase:latest
@@ -111,7 +117,29 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  dbt-docs:
+    image: python:3.11-slim
+    user: "${UID:-1000}:${GID:-1000}"
+    working_dir: /app/dbt
+    volumes:
+      - ./dbt:/app/dbt
+    ports:
+      - "8082:8082"
+    command: >
+      sh -c "pip install dbt-clickhouse --quiet &&
+             dbt docs generate --profiles-dir /app/dbt &&
+             python -m http.server 8082 --directory /app/dbt/target"
+    environment:
+      - CLICKHOUSE_HOST=clickhouse
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}
+    depends_on:
+      - clickhouse
+    restart: "no"
+    # profiles:
+    #   - docs
+
 volumes:
   clickhouse-data:
   postgres-data:
-  # airflow-logs:
+  airflow-logs:

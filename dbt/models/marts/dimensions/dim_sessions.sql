@@ -33,8 +33,8 @@ meeting_rounds AS (
 SELECT
     s.session_key,
     s.year                  AS season,
-    mr.round,
-    mr.race_name,
+    mr.round                AS round,
+    mr.race_name            AS race_name,
     mr.circuit_id           AS circuit_id,
     c.circuit_name,
     c.country               AS circuit_country,
@@ -51,3 +51,5 @@ LEFT JOIN meeting_rounds                    mr
     ON  mr.meeting_key = s.meeting_key
 LEFT JOIN {{ ref('dim_circuits') }}         c
     ON  c.circuit_id = mr.circuit_id
+-- Exclude sessions that couldn't be mapped to a Jolpica race round (e.g. pre-season testing).
+WHERE mr.round IS NOT NULL

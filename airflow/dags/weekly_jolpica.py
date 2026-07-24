@@ -27,20 +27,22 @@ def weekly_jolpica():
         from datetime import date
 
         import httpx
+        from airflow.exceptions import AirflowSkipException
 
+        # limit=100 covers a full season (≤24 rounds); limit=1 only ever returns round 1
         resp = httpx.get(
             "https://api.jolpi.ca/ergast/f1/current.json",
-            params={"limit": 1},
+            params={"limit": 100},
         )
         resp.raise_for_status()
         races = resp.json()["MRData"]["RaceTable"]["Races"]
         if not races:
-            raise ValueError("No races found for current season")
+            raise AirflowSkipException("No races found for current season")
 
         today = date.today()
         completed = [r for r in races if r["date"] < str(today)]
         if not completed:
-            raise ValueError("No completed races this season yet")
+            raise AirflowSkipException("No completed races this season yet")
 
         latest = completed[-1]
         return {"season": int(latest["season"]), "round": int(latest["round"])}
@@ -49,7 +51,12 @@ def weekly_jolpica():
     def ingest_results(race_info: dict):
         from ingestion.jolpica.incremental import ingest_round
 
-        ingest_round(race_info["season"], race_info["round"])
+        all_ok = ingest_round(race_info["season"], race_info["round"])
+        if not all_ok:
+            raise RuntimeError(
+                f"one or more tables failed for {race_info['season']} round "
+                f"{race_info['round']} — see raw_meta.ingestion_log"
+            )
 
     trigger_dbt = TriggerDagRunOperator(
         task_id="trigger_dbt",

@@ -10,8 +10,11 @@ venv/
 
 # dbt
 dbt/target/
+dbt/target.bak/
 dbt/logs/
 dbt/.user.yml
+dbt/dbt_packages/
+dbt/edr_target/
 
 # Airflow
 airflow/logs/
@@ -32,3 +35,8 @@ data/
 
 # OS
 .DS_Store
+
+metabase.pwd
+
+# Ingestion checkpoints (local run state, not source)
+ingestion/*/.backfill_checkpoint.json
