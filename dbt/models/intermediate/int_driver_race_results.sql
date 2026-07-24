@@ -20,7 +20,8 @@ SELECT
     l.duration_sector_1     AS of1_s1,
     l.duration_sector_2     AS of1_s2,
     l.duration_sector_3     AS of1_s3,
-    sm.session_key          AS session_key
+    sm.session_key          AS session_key,
+    r._ingested_at          AS _ingested_at
 FROM {{ ref('stg_jolpica__results') }}          r
 LEFT JOIN {{ ref('driver_id_map') }}  m
     ON  m.jolpica_driver_id = r.driver_id
@@ -30,7 +31,21 @@ LEFT JOIN {{ ref('int_session_map') }}          sm
     AND sm.round        = r.round
     AND sm.session_type = 'Race'
     AND sm.session_name = 'Race'
-LEFT JOIN {{ ref('stg_openf1__laps') }}         l
+LEFT JOIN (
+    SELECT
+        session_key,
+        driver_number,
+        lap_duration,
+        duration_sector_1,
+        duration_sector_2,
+        duration_sector_3,
+        row_number() OVER (
+            PARTITION BY session_key, driver_number
+            ORDER BY lap_duration ASC
+        ) AS fastest_lap_rn
+    FROM {{ ref('stg_openf1__laps') }}
+    WHERE lap_duration IS NOT NULL
+) l
     ON  l.session_key   = sm.session_key
     AND l.driver_number = m.openf1_driver_number
-    AND l.lap_number    = r.laps_completed  -- fastest lap is typically the last completed
+    AND l.fastest_lap_rn = 1

@@ -18,7 +18,7 @@ import argparse
 import structlog
 
 from ingestion.openf1 import endpoints
-from ingestion.openf1.backfill import _load_checkpoint, _save_checkpoint, ingest_session
+from ingestion.openf1.backfill import ingest_session
 
 log = structlog.get_logger()
 
@@ -91,18 +91,12 @@ def main():
         log.error("no sessions matched — nothing to do")
         return
 
-    completed = _load_checkpoint()
-    for s in target_sessions:
-        completed.discard(s.session_key)
-    _save_checkpoint(completed)
-    log.info("removed sessions from checkpoint", count=len(target_sessions))
-
     for s in target_sessions:
         log.info("re-ingesting", session_key=s.session_key, location=s.location)
-        ok = ingest_session(s.session_key, skip_telemetry=False)
+        # force=True: these sessions may already be marked 'ok' in raw_meta.ingestion_log,
+        # so we bypass the needs_ingestion skip check to force a re-fetch.
+        ok = ingest_session(s.session_key, skip_telemetry=False, force=True)
         if ok:
-            completed.add(s.session_key)
-            _save_checkpoint(completed)
             log.info("done", session_key=s.session_key)
         else:
             log.warning("completed with errors", session_key=s.session_key)

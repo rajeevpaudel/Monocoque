@@ -31,6 +31,25 @@ def parse_run_results(run_results: dict) -> list[dict]:
     return failures
 
 
+def attach_failure_context(failures: list[dict], client) -> None:
+    """Best-effort: look up (season, round) for each failed test from its
+    dbt store_failures audit table (test_failures.<test_name>), so Telegram
+    alerts can show which race weekend broke. Not every test selects season/
+    round in its failing rows, so a missing/errored lookup just leaves the
+    alert without round context rather than failing the task.
+    """
+    for f in failures:
+        try:
+            rows = client.query(
+                f"SELECT DISTINCT season, round FROM test_failures.{f['test_name']} "
+                f"WHERE season IS NOT NULL AND round IS NOT NULL LIMIT 1"
+            ).result_rows
+            if rows:
+                f["season"], f["round"] = rows[0]
+        except Exception:
+            pass
+
+
 @dag(
     dag_id="dq_monitor",
     schedule="@hourly",
@@ -73,13 +92,23 @@ def dq_monitor():
                 run_results = json.load(f)
             failures = parse_run_results(run_results)
         except Exception as e:
-            failures = []
-            failures.append({
+            failures = [{
                 "test_name": "dbt_test_runner",
                 "status": "error",
                 "failures": 1,
                 "message": f"Could not read run_results.json: {e}\n\nSTDOUT:\n{result.stdout[-1000:]}",
-            })
+            }]
+            return {"failures": failures}
+
+        if failures:
+            try:
+                import clickhouse_connect
+                client = clickhouse_connect.get_client(
+                    host=os.environ.get("CLICKHOUSE_HOST", "clickhouse")
+                )
+                attach_failure_context(failures, client)
+            except Exception:
+                pass  # round context is best-effort — don't lose real failures over it
         return {"failures": failures}
 
     @task

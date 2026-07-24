@@ -35,3 +35,8 @@ data/
 
 # OS
 .DS_Store
+
+metabase.pwd
+
+# Ingestion checkpoints (local run state, not source)
+ingestion/*/.backfill_checkpoint.json

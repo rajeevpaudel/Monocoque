@@ -2,7 +2,8 @@
 {{
     config(
         materialized='incremental',
-        incremental_strategy='append',
+        incremental_strategy='delete+insert',
+        unique_key=['season', 'round', 'driver_id', 'stop_number'],
         engine='MergeTree()',
         order_by='(season, round, driver_id, stop_number)',
     )
@@ -19,7 +20,8 @@ SELECT
     p.pit_duration      AS pit_duration,
     p.pit_duration_ms   AS pit_duration_ms,
     m.openf1_driver_number AS openf1_driver_number,
-    sm.session_key      AS session_key
+    sm.session_key      AS session_key,
+    p._ingested_at      AS _ingested_at
 FROM {{ ref('stg_jolpica__pit_stops') }}        p
 LEFT JOIN {{ ref('driver_id_map') }}            m
     ON  m.jolpica_driver_id = p.driver_id
@@ -31,7 +33,5 @@ LEFT JOIN {{ ref('int_session_map') }}          sm
     AND sm.session_name = 'Race'
 
 {% if is_incremental() %}
-WHERE (p.season, p.round) NOT IN (
-    SELECT season, round FROM {{ this }}
-)
+WHERE p._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
 {% endif %}

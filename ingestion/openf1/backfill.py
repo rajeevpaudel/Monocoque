@@ -33,10 +33,10 @@ def _model_to_dict(m) -> dict:
     return d
 
 
-def ingest_session(session_key: int, skip_telemetry: bool = False) -> bool:
+def ingest_session(session_key: int, skip_telemetry: bool = False, force: bool = False) -> bool:
     """
     Ingest one session table-by-table.
-    - Skips tables already marked 'ok'/'empty' in the log.
+    - Skips tables already marked 'ok'/'empty' in the log, unless force=True.
     - Deletes stale rows before re-inserting for 'failed'/'incomplete' tables.
     - Records outcome in log after each table.
     Returns True if no table ended with 'failed' status.
@@ -62,7 +62,7 @@ def ingest_session(session_key: int, skip_telemetry: bool = False) -> bool:
     tables_to_run = core_tables if skip_telemetry else core_tables + telemetry_tables
 
     for fn, table in tables_to_run:
-        if not log_util.needs_ingestion(log_util.SOURCE_OPENF1, entity_key, table):
+        if not force and not log_util.needs_ingestion(log_util.SOURCE_OPENF1, entity_key, table):
             slog.debug("skipping — already complete", table=table)
             continue
 

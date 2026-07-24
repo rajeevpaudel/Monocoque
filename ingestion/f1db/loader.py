@@ -149,31 +149,29 @@ def load_races(zf: zipfile.ZipFile) -> None:
 
 
 def _load_results(zf: zipfile.ZipFile, filename: str, table: str) -> None:
+    # Parse (and thus raise on schema drift / malformed rows) before truncating,
+    # so a bad release never leaves the table empty/partially loaded.
+    rows = [{
+        "year":           int(r["year"]),
+        "round":          int(r["round"]),
+        "driver_id":      r["driverId"],
+        "constructor_id": r["constructorId"],
+        "grid":           _int(r.get("gridPositionNumber", "")),
+        "position":       _int(r.get("positionNumber", "")),
+        "position_text":  r.get("positionText", ""),
+        "position_order": int(r.get("positionDisplayOrder") or 0),
+        "points":         float(r.get("points") or 0),
+        "laps":           _int(r.get("laps", "")),
+        "status":         _str(r.get("reasonRetired", "")),
+        "time_millis":    _int(r.get("timeMillis", "")),
+    } for r in _open_csv(zf, filename)]
+
     ch.truncate_table(table)
-    rows: list[dict] = []
     total = 0
-    for r in _open_csv(zf, filename):
-        rows.append({
-            "year":           int(r["year"]),
-            "round":          int(r["round"]),
-            "driver_id":      r["driverId"],
-            "constructor_id": r["constructorId"],
-            "grid":           _int(r.get("gridPositionNumber", "")),
-            "position":       _int(r.get("positionNumber", "")),
-            "position_text":  r.get("positionText", ""),
-            "position_order": int(r.get("positionDisplayOrder") or 0),
-            "points":         float(r.get("points") or 0),
-            "laps":           _int(r.get("laps", "")),
-            "status":         _str(r.get("reasonRetired", "")),
-            "time_millis":    _int(r.get("timeMillis", "")),
-        })
-        if len(rows) >= _CHUNK:
-            ch.insert_rows(table, rows)
-            total += len(rows)
-            rows = []
-    if rows:
-        ch.insert_rows(table, rows)
-        total += len(rows)
+    for i in range(0, len(rows), _CHUNK):
+        chunk = rows[i:i + _CHUNK]
+        ch.insert_rows(table, chunk)
+        total += len(chunk)
     log.info("loaded", table=table, count=total)
 
 
@@ -186,126 +184,106 @@ def load_sprint_race_results(zf: zipfile.ZipFile) -> None:
 
 
 def load_qualifying_results(zf: zipfile.ZipFile) -> None:
+    rows = [{
+        "year":           int(r["year"]),
+        "round":          int(r["round"]),
+        "driver_id":      r["driverId"],
+        "constructor_id": r["constructorId"],
+        "position":       _int(r.get("positionNumber", "")),
+        "q1":             _str(r.get("q1", "")),
+        "q1_millis":      _int(r.get("q1Millis", "")),
+        "q2":             _str(r.get("q2", "")),
+        "q2_millis":      _int(r.get("q2Millis", "")),
+        "q3":             _str(r.get("q3", "")),
+        "q3_millis":      _int(r.get("q3Millis", "")),
+        "time_millis":    _int(r.get("timeMillis", "")),
+    } for r in _open_csv(zf, "f1db-races-qualifying-results.csv")]
+
     ch.truncate_table("raw_f1db.qualifying_results")
-    rows: list[dict] = []
     total = 0
-    for r in _open_csv(zf, "f1db-races-qualifying-results.csv"):
-        rows.append({
-            "year":           int(r["year"]),
-            "round":          int(r["round"]),
-            "driver_id":      r["driverId"],
-            "constructor_id": r["constructorId"],
-            "position":       _int(r.get("positionNumber", "")),
-            "q1":             _str(r.get("q1", "")),
-            "q1_millis":      _int(r.get("q1Millis", "")),
-            "q2":             _str(r.get("q2", "")),
-            "q2_millis":      _int(r.get("q2Millis", "")),
-            "q3":             _str(r.get("q3", "")),
-            "q3_millis":      _int(r.get("q3Millis", "")),
-            "time_millis":    _int(r.get("timeMillis", "")),
-        })
-        if len(rows) >= _CHUNK:
-            ch.insert_rows("raw_f1db.qualifying_results", rows)
-            total += len(rows)
-            rows = []
-    if rows:
-        ch.insert_rows("raw_f1db.qualifying_results", rows)
-        total += len(rows)
+    for i in range(0, len(rows), _CHUNK):
+        chunk = rows[i:i + _CHUNK]
+        ch.insert_rows("raw_f1db.qualifying_results", chunk)
+        total += len(chunk)
     log.info("loaded", table="qualifying_results", count=total)
 
 
 def load_pit_stops(zf: zipfile.ZipFile) -> None:
+    rows = [{
+        "year":        int(r["year"]),
+        "round":       int(r["round"]),
+        "driver_id":   r["driverId"],
+        "stop":        int(r.get("stop") or 0),
+        "lap":         int(r.get("lap") or 0),
+        "time":        r.get("time", ""),
+        "time_millis": _int(r.get("timeMillis", "")),
+    } for r in _open_csv(zf, "f1db-races-pit-stops.csv")]
+
     ch.truncate_table("raw_f1db.pit_stops")
-    rows: list[dict] = []
     total = 0
-    for r in _open_csv(zf, "f1db-races-pit-stops.csv"):
-        rows.append({
-            "year":        int(r["year"]),
-            "round":       int(r["round"]),
-            "driver_id":   r["driverId"],
-            "stop":        int(r.get("stop") or 0),
-            "lap":         int(r.get("lap") or 0),
-            "time":        r.get("time", ""),
-            "time_millis": _int(r.get("timeMillis", "")),
-        })
-        if len(rows) >= _CHUNK:
-            ch.insert_rows("raw_f1db.pit_stops", rows)
-            total += len(rows)
-            rows = []
-    if rows:
-        ch.insert_rows("raw_f1db.pit_stops", rows)
-        total += len(rows)
+    for i in range(0, len(rows), _CHUNK):
+        chunk = rows[i:i + _CHUNK]
+        ch.insert_rows("raw_f1db.pit_stops", chunk)
+        total += len(chunk)
     log.info("loaded", table="pit_stops", count=total)
 
 
 def load_fastest_laps(zf: zipfile.ZipFile) -> None:
+    rows = [{
+        "year":           int(r["year"]),
+        "round":          int(r["round"]),
+        "driver_id":      r["driverId"],
+        "constructor_id": r["constructorId"],
+        "position":       _int(r.get("positionNumber", "")),
+        "lap":            _int(r.get("lap", "")),
+        "time":           _str(r.get("time", "")),
+        "time_millis":    _int(r.get("timeMillis", "")),
+    } for r in _open_csv(zf, "f1db-races-fastest-laps.csv")]
+
     ch.truncate_table("raw_f1db.fastest_laps")
-    rows: list[dict] = []
     total = 0
-    for r in _open_csv(zf, "f1db-races-fastest-laps.csv"):
-        rows.append({
-            "year":           int(r["year"]),
-            "round":          int(r["round"]),
-            "driver_id":      r["driverId"],
-            "constructor_id": r["constructorId"],
-            "position":       _int(r.get("positionNumber", "")),
-            "lap":            _int(r.get("lap", "")),
-            "time":           _str(r.get("time", "")),
-            "time_millis":    _int(r.get("timeMillis", "")),
-        })
-        if len(rows) >= _CHUNK:
-            ch.insert_rows("raw_f1db.fastest_laps", rows)
-            total += len(rows)
-            rows = []
-    if rows:
-        ch.insert_rows("raw_f1db.fastest_laps", rows)
-        total += len(rows)
+    for i in range(0, len(rows), _CHUNK):
+        chunk = rows[i:i + _CHUNK]
+        ch.insert_rows("raw_f1db.fastest_laps", chunk)
+        total += len(chunk)
     log.info("loaded", table="fastest_laps", count=total)
 
 
 def load_driver_standings(zf: zipfile.ZipFile) -> None:
+    rows = [{
+        "year":          int(r["year"]),
+        "round":         int(r["round"]),
+        "driver_id":     r["driverId"],
+        "position":      _int(r.get("positionNumber", "")),
+        "position_text": r.get("positionText", ""),
+        "points":        float(r.get("points") or 0),
+    } for r in _open_csv(zf, "f1db-races-driver-standings.csv")]
+
     ch.truncate_table("raw_f1db.driver_standings")
-    rows: list[dict] = []
     total = 0
-    for r in _open_csv(zf, "f1db-races-driver-standings.csv"):
-        rows.append({
-            "year":          int(r["year"]),
-            "round":         int(r["round"]),
-            "driver_id":     r["driverId"],
-            "position":      _int(r.get("positionNumber", "")),
-            "position_text": r.get("positionText", ""),
-            "points":        float(r.get("points") or 0),
-        })
-        if len(rows) >= _CHUNK:
-            ch.insert_rows("raw_f1db.driver_standings", rows)
-            total += len(rows)
-            rows = []
-    if rows:
-        ch.insert_rows("raw_f1db.driver_standings", rows)
-        total += len(rows)
+    for i in range(0, len(rows), _CHUNK):
+        chunk = rows[i:i + _CHUNK]
+        ch.insert_rows("raw_f1db.driver_standings", chunk)
+        total += len(chunk)
     log.info("loaded", table="driver_standings", count=total)
 
 
 def load_constructor_standings(zf: zipfile.ZipFile) -> None:
+    rows = [{
+        "year":           int(r["year"]),
+        "round":          int(r["round"]),
+        "constructor_id": r["constructorId"],
+        "position":       _int(r.get("positionNumber", "")),
+        "position_text":  r.get("positionText", ""),
+        "points":         float(r.get("points") or 0),
+    } for r in _open_csv(zf, "f1db-races-constructor-standings.csv")]
+
     ch.truncate_table("raw_f1db.constructor_standings")
-    rows: list[dict] = []
     total = 0
-    for r in _open_csv(zf, "f1db-races-constructor-standings.csv"):
-        rows.append({
-            "year":           int(r["year"]),
-            "round":          int(r["round"]),
-            "constructor_id": r["constructorId"],
-            "position":       _int(r.get("positionNumber", "")),
-            "position_text":  r.get("positionText", ""),
-            "points":         float(r.get("points") or 0),
-        })
-        if len(rows) >= _CHUNK:
-            ch.insert_rows("raw_f1db.constructor_standings", rows)
-            total += len(rows)
-            rows = []
-    if rows:
-        ch.insert_rows("raw_f1db.constructor_standings", rows)
-        total += len(rows)
+    for i in range(0, len(rows), _CHUNK):
+        chunk = rows[i:i + _CHUNK]
+        ch.insert_rows("raw_f1db.constructor_standings", chunk)
+        total += len(chunk)
     log.info("loaded", table="constructor_standings", count=total)
 
 

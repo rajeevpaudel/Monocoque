@@ -11,7 +11,7 @@ _airflow_stubs = {
 for _mod, _mock in _airflow_stubs.items():
     sys.modules.setdefault(_mod, _mock)
 
-from airflow.dags.dq_monitor import parse_run_results  # noqa: E402, I001 — must follow the airflow stub above
+from airflow.dags.dq_monitor import attach_failure_context, parse_run_results  # noqa: E402, I001 — must follow the airflow stub above
 
 
 def test_parse_run_results_extracts_fail_and_error():
@@ -38,3 +38,34 @@ def test_parse_run_results_ignores_passing_tests():
 def test_parse_run_results_handles_empty_results():
     assert parse_run_results({"results": []}) == []
     assert parse_run_results({}) == []
+
+
+def test_attach_failure_context_adds_season_round_when_available():
+    failures = [{"test_name": "assert_all_rounds_have_results", "status": "fail",
+                 "failures": 1, "message": ""}]
+    client = MagicMock()
+    client.query.return_value.result_rows = [(2024, 22)]
+    attach_failure_context(failures, client)
+    assert failures[0]["season"] == 2024
+    assert failures[0]["round"] == 22
+
+
+def test_attach_failure_context_leaves_failure_unchanged_when_no_rows():
+    failures = [{"test_name": "assert_weather_coverage", "status": "fail",
+                 "failures": 1, "message": ""}]
+    client = MagicMock()
+    client.query.return_value.result_rows = []
+    attach_failure_context(failures, client)
+    assert "season" not in failures[0]
+    assert "round" not in failures[0]
+
+
+def test_attach_failure_context_survives_query_error():
+    """A test whose failure table has no season/round columns (or doesn't
+    exist) must not blow up the whole alert pipeline."""
+    failures = [{"test_name": "assert_unrelated_check", "status": "fail",
+                 "failures": 1, "message": ""}]
+    client = MagicMock()
+    client.query.side_effect = RuntimeError("no such column: season")
+    attach_failure_context(failures, client)
+    assert "season" not in failures[0]

@@ -6,6 +6,7 @@ literals, so a semicolon inside a string (e.g. a default value) doesn't
 truncate a statement.
 """
 
+import hashlib
 import os
 from pathlib import Path
 
@@ -31,19 +32,28 @@ def _ensure_tracking_table(client) -> None:
     client.command(f"""
         CREATE TABLE IF NOT EXISTS {_TRACKING_TABLE} (
             filename    String,
+            checksum    String,
             applied_at  DateTime DEFAULT now()
         ) ENGINE = MergeTree()
         ORDER BY filename
     """)
+    # Backfill the column for tables created before checksum tracking existed.
+    client.command(f"ALTER TABLE {_TRACKING_TABLE} ADD COLUMN IF NOT EXISTS checksum String DEFAULT ''")
 
 
-def _applied_filenames(client) -> set[str]:
-    rows = client.query(f"SELECT DISTINCT filename FROM {_TRACKING_TABLE}").result_rows
-    return {r[0] for r in rows}
+def _file_checksum(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _mark_applied(client, filename: str) -> None:
-    client.insert(_TRACKING_TABLE, [[filename]], column_names=["filename"])
+def _applied_checksums(client) -> dict[str, str]:
+    rows = client.query(
+        f"SELECT filename, argMax(checksum, applied_at) FROM {_TRACKING_TABLE} GROUP BY filename"
+    ).result_rows
+    return {r[0]: r[1] for r in rows}
+
+
+def _mark_applied(client, filename: str, checksum: str) -> None:
+    client.insert(_TRACKING_TABLE, [[filename, checksum]], column_names=["filename", "checksum"])
 
 
 def split_statements(sql: str) -> list[str]:
@@ -102,7 +112,7 @@ def split_statements(sql: str) -> list[str]:
 def run_migrations():
     client = get_client()
     _ensure_tracking_table(client)
-    applied = _applied_filenames(client)
+    applied = _applied_checksums(client)
 
     migration_files = sorted(MIGRATIONS_DIR.glob("*.sql"))
     if not migration_files:
@@ -112,8 +122,17 @@ def run_migrations():
     applied_count = 0
     skipped_count = 0
     for path in migration_files:
+        checksum = _file_checksum(path)
         if path.name in applied:
-            print(f"Skipping {path.name} (already applied).")
+            if applied[path.name] and applied[path.name] != checksum:
+                print(
+                    f"WARNING: {path.name} was modified after being applied "
+                    f"(checksum mismatch) — not re-running automatically. "
+                    f"If this change needs to reach this environment, write a new "
+                    f"migration file instead of editing an applied one."
+                )
+            else:
+                print(f"Skipping {path.name} (already applied).")
             skipped_count += 1
             continue
 
@@ -124,7 +143,7 @@ def run_migrations():
             clean = "\n".join(lines).strip()
             if clean:
                 client.command(clean)
-        _mark_applied(client, path.name)
+        _mark_applied(client, path.name, checksum)
         print("  Done.")
         applied_count += 1
 

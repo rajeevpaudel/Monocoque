@@ -39,3 +39,8 @@ models:
 seeds:
   f1_warehouse:
     +schema: staging
+
+tests:
+  f1_warehouse:
+    +store_failures: true
+    +schema: test_failures

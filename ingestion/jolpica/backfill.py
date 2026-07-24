@@ -35,9 +35,12 @@ def _model_to_dict(m) -> dict:
 
 
 def ingest_reference_tables():
+    """Reference endpoints return the full historical set on every call, so each
+    table is truncated before insert — re-running never duplicates rows."""
     log.info("ingesting reference tables")
     for table, fn in REFERENCE_TABLES:
         rows = fn()
+        ch.truncate_table(table)
         ch.insert_rows(table, [_model_to_dict(r) for r in rows])
         log.info("done", table=table, count=len(rows))
 
@@ -109,6 +112,7 @@ def ingest_season(season: int) -> None:
         slog.info("no races found, skipping")
         return
 
+    ch.delete_rows("raw_jolpica.races", f"season = {season}")
     ch.insert_rows("raw_jolpica.races", [_model_to_dict(r) for r in races])
     slog.info("races stored", count=len(races))
 

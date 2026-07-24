@@ -1,7 +1,8 @@
 {{
     config(
         materialized='incremental',
-        incremental_strategy='append',
+        incremental_strategy='delete+insert',
+        unique_key=['season', 'round', 'driver_id'],
         engine='MergeTree()',
         order_by='(season, round, driver_id)',
     )
@@ -126,7 +127,8 @@ SELECT
         sm.session_key     IS NULL,             'jolpica_only',
         COALESCE(q.q1_ms, q.q2_ms, q.q3_ms) IS NULL,    NULL,
                                                 'mismatch'
-    ) AS best_source_match
+    ) AS best_source_match,
+    q._ingested_at                      AS _ingested_at
 FROM {{ ref('stg_jolpica__qualifying') }}        q
 LEFT JOIN {{ ref('driver_id_map') }}   m
     ON  m.jolpica_driver_id = q.driver_id
@@ -144,7 +146,5 @@ LEFT JOIN openf1_best                            ob
     AND ob.driver_number = m.openf1_driver_number
 
 {% if is_incremental() %}
-WHERE (q.season, q.round) NOT IN (
-    SELECT season, round FROM {{ this }}
-)
+WHERE q._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
 {% endif %}
