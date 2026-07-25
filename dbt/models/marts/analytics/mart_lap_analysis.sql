@@ -16,7 +16,6 @@ SELECT
     i2_speed,
     st_speed,
     -- 'sc' | 'vsc' | 'red' | NULL (green flag / no OpenF1 race control data, e.g. pre-2023)
-    -- Exclude non-green laps from pace comparisons: filter WHERE track_status IS NULL.
     track_status
 FROM {{ ref('fact_laps') }}
 WHERE lap_time_ms > 0
