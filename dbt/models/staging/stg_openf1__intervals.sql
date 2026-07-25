@@ -1,7 +1,7 @@
 SELECT
     session_key,
     driver_number,
-    toDateTime(date)    AS interval_date,
+    parseDateTime64BestEffort(date)    AS interval_date,
     gap_to_leader,
     interval,
     _ingested_at,

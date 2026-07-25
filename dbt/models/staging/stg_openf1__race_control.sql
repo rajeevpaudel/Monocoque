@@ -1,6 +1,6 @@
 SELECT
     session_key,
-    toDateTime(date)    AS message_date,
+    parseDateTime64BestEffort(date)    AS message_date,
     driver_number,
     lap_number,
     category,
