@@ -24,7 +24,7 @@ jobs:
       - name: Pytest
         run: pytest -q
 
-  dbt-parse:
+  dbt-build:
     runs-on: ubuntu-latest
     services:
       clickhouse:
@@ -66,3 +66,16 @@ jobs:
       - name: dbt parse
         working-directory: dbt
         run: dbt parse --profiles-dir .
+
+      # The 28 singular tests and all schema tests previously only ever ran against production
+      # data, in Airflow, after merge — a broken join or dialect error (wrong sort key, bad
+      # incremental config, etc) would ship before anyone noticed. `dbt build` here runs every
+      # model and every test against a freshly-migrated ClickHouse with no ingested data: with
+      # 0 rows, not_null/unique/accepted_values/relationships and the singular assertions all
+      # trivially hold, but it still fully compiles and executes every model's SQL against real
+      # ClickHouse — which catches syntax errors, bad engine/sort-key configs, and missing refs
+      # before merge. It does not catch business-logic regressions that only manifest with real
+      # data (that's what the Airflow dq_monitor DAG is for) — see docs/data-quality.md.
+      - name: dbt build (empty warehouse — schema/compile/test-wiring check)
+        working-directory: dbt
+        run: dbt build --profiles-dir . --exclude package:elementary
