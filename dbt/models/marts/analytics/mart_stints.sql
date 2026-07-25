@@ -22,7 +22,7 @@ JOIN {{ ref('int_session_map') }}       sm
     ON  sm.session_key  = st.session_key
     AND sm.session_type = 'Race'
     AND sm.session_name = 'Race'
-LEFT JOIN {{ ref('dim_races') }}        r
+LEFT JOIN {{ ref('dim_races') }} AS r FINAL
     ON  r.season = sm.season AND r.round = sm.round
 LEFT JOIN {{ ref('driver_id_map') }}   jmap
     ON  jmap.openf1_driver_number = st.driver_number
@@ -31,6 +31,6 @@ LEFT JOIN {{ ref('fact_race_results') }} fr
     ON  fr.season    = sm.season
     AND fr.round     = sm.round
     AND fr.driver_id = jmap.jolpica_driver_id
-LEFT JOIN {{ ref('dim_drivers') }}      d
+LEFT JOIN {{ ref('dim_drivers') }} AS d FINAL
     ON  d.driver_id = jmap.jolpica_driver_id
     AND d.season    = sm.season
