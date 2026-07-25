@@ -92,6 +92,14 @@ matched_laps AS (
     WHERE COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms) IS NOT NULL
       AND abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)) <= 50
     GROUP BY al.session_key, al.driver_number
+),
+
+-- A driver with a track-limits deletion event in this session is a plausible explanation for a
+-- failed ±50ms match: Jolpica's official best time excludes the deleted lap, but OpenF1's raw
+-- lap_duration doesn't know it was deleted, so the two sources can legitimately disagree.
+track_limit_flags AS (
+    SELECT DISTINCT session_key, driver_number
+    FROM {{ ref('int_track_limit_deletions') }}
 )
 
 SELECT
@@ -122,10 +130,12 @@ SELECT
     ml.segments_s2                      AS segments_s2,
     ml.segments_s3                      AS segments_s3,
     ob.openf1_best_time_ms              AS openf1_best_time_ms,
+    tld.driver_number IS NOT NULL       AS deleted_for_track_limits,
     multiIf(
         ml.best_lap_number IS NOT NULL,         'matched',
         sm.session_key     IS NULL,             'jolpica_only',
         COALESCE(q.q1_ms, q.q2_ms, q.q3_ms) IS NULL,    NULL,
+        tld.driver_number IS NOT NULL,          'mismatch_track_limits_deletion',
                                                 'mismatch'
     ) AS best_source_match,
     q._ingested_at                      AS _ingested_at
@@ -144,7 +154,17 @@ LEFT JOIN matched_laps                           ml
 LEFT JOIN openf1_best                            ob
     ON  ob.session_key   = sm.session_key
     AND ob.driver_number = m.openf1_driver_number
+LEFT JOIN track_limit_flags                      tld
+    ON  tld.session_key   = sm.session_key
+    AND tld.driver_number = m.openf1_driver_number
 
 {% if is_incremental() %}
 WHERE q._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
 {% endif %}
+
+-- join_use_nulls scoped to this query only: without it, ClickHouse fills unmatched LEFT JOIN
+-- columns (sm.session_key, tld.driver_number, ...) with their type default (0) rather than NULL,
+-- which silently breaks every `x IS NULL` "no match" check below (jolpica_only / track-limits
+-- reconciliation). Scoped here rather than globally — several other models' sort keys are not
+-- nullable-safe and error under a warehouse-wide join_use_nulls=1.
+SETTINGS join_use_nulls = 1

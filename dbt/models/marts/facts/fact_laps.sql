@@ -28,6 +28,7 @@ SELECT
     ol.is_pit_out_lap       AS is_pit_out_lap,
     m.openf1_driver_number  AS openf1_driver_number,
     sm.session_key          AS session_key,
+    ts.track_status         AS track_status,
     jl._ingested_at         AS _ingested_at
 FROM {{ ref('stg_jolpica__laps') }}             jl
 LEFT JOIN {{ ref('driver_id_map') }}  m
@@ -42,6 +43,9 @@ LEFT JOIN {{ ref('stg_openf1__laps') }}         ol
     ON  ol.session_key   = sm.session_key
     AND ol.driver_number = m.openf1_driver_number
     AND ol.lap_number    = jl.lap_number
+LEFT JOIN {{ ref('int_lap_track_status') }}     ts
+    ON  ts.session_key   = sm.session_key
+    AND ts.lap_number    = jl.lap_number
 
 {% if is_incremental() %}
 WHERE jl._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
