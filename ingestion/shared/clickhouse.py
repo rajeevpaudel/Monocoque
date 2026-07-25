@@ -63,6 +63,35 @@ def truncate_table(table: str) -> None:
     log.info("truncated table", table=table)
 
 
+def atomic_reload(table: str, rows: list[dict[str, Any]], chunk_size: int = 5_000) -> int:
+    """Replace a full-dump table's contents without a truncate-then-insert window where a
+    mid-load failure leaves it empty or half-loaded.
+
+    Loads into a shadow table, then atomically swaps it in with EXCHANGE TABLES (ClickHouse's
+    Atomic database engine, the default since 20.x) only once every chunk has inserted
+    successfully. On any failure, the shadow table is dropped and `table` is left untouched —
+    a real rollback, unlike `truncate_table` + `insert_rows` in a loop.
+    """
+    client = get_client()
+    shadow = f"{table}_reload_staging"
+    client.command(f"DROP TABLE IF EXISTS {shadow}")
+    client.command(f"CREATE TABLE {shadow} AS {table}")
+    try:
+        total = 0
+        for i in range(0, len(rows), chunk_size):
+            chunk = rows[i:i + chunk_size]
+            insert_rows(shadow, chunk)
+            total += len(chunk)
+        client.command(f"EXCHANGE TABLES {table} AND {shadow}")
+    except Exception:
+        client.command(f"DROP TABLE IF EXISTS {shadow}")
+        raise
+    else:
+        client.command(f"DROP TABLE IF EXISTS {shadow}")
+        log.info("atomically reloaded table", table=table, count=total)
+        return total
+
+
 def query_one(sql: str, parameters: dict | None = None) -> Any:
     """Return the first value of the first row."""
     result = get_client().query(sql, parameters=parameters or {})

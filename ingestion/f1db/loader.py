@@ -6,9 +6,10 @@ updated after each race weekend. It uses different driver/constructor IDs
 from Jolpica (e.g. 'lewis-hamilton' vs Jolpica's 'hamilton'), so data
 lands in raw_f1db.* rather than raw_jolpica.*.
 
-Each release is a full dump, not a delta — every loader truncates its target
-table before inserting, so re-running (e.g. to pick up a new release) never
-duplicates rows.
+Each release is a full dump, not a delta — every loader atomically replaces its target
+table's contents (`ch.atomic_reload`: load into a shadow table, swap it in only once
+fully loaded), so re-running (e.g. to pick up a new release) never duplicates rows and
+a failed load never leaves the table empty or half-populated.
 
 Usage:
     python -m ingestion.f1db.loader                     # latest release
@@ -78,8 +79,7 @@ def _open_csv(zf: zipfile.ZipFile, name: str):
 
 def load_seasons(zf: zipfile.ZipFile) -> None:
     rows = [{"year": int(r["year"])} for r in _open_csv(zf, "f1db-seasons.csv")]
-    ch.truncate_table("raw_f1db.seasons")
-    ch.insert_rows("raw_f1db.seasons", rows)
+    ch.atomic_reload("raw_f1db.seasons", rows)
     log.info("loaded", table="seasons", count=len(rows))
 
 
@@ -96,8 +96,7 @@ def load_circuits(zf: zipfile.ZipFile) -> None:
             "length_km":  _float(r.get("length", "")),
             "turns":      _int(r.get("turns", "")),
         })
-    ch.truncate_table("raw_f1db.circuits")
-    ch.insert_rows("raw_f1db.circuits", rows)
+    ch.atomic_reload("raw_f1db.circuits", rows)
     log.info("loaded", table="circuits", count=len(rows))
 
 
@@ -113,8 +112,7 @@ def load_drivers(zf: zipfile.ZipFile) -> None:
             "date_of_birth":    _str(r.get("dateOfBirth", "")),
             "nationality":      r.get("nationalityCountryId", ""),
         })
-    ch.truncate_table("raw_f1db.drivers")
-    ch.insert_rows("raw_f1db.drivers", rows)
+    ch.atomic_reload("raw_f1db.drivers", rows)
     log.info("loaded", table="drivers", count=len(rows))
 
 
@@ -126,8 +124,7 @@ def load_constructors(zf: zipfile.ZipFile) -> None:
             "name":           r["name"],
             "country_id":     r.get("countryId", ""),
         })
-    ch.truncate_table("raw_f1db.constructors")
-    ch.insert_rows("raw_f1db.constructors", rows)
+    ch.atomic_reload("raw_f1db.constructors", rows)
     log.info("loaded", table="constructors", count=len(rows))
 
 
@@ -143,14 +140,14 @@ def load_races(zf: zipfile.ZipFile) -> None:
             "time":       _str(r.get("time", "")),
             "laps":       _int(r.get("laps", "")),
         })
-    ch.truncate_table("raw_f1db.races")
-    ch.insert_rows("raw_f1db.races", rows)
+    ch.atomic_reload("raw_f1db.races", rows)
     log.info("loaded", table="races", count=len(rows))
 
 
 def _load_results(zf: zipfile.ZipFile, filename: str, table: str) -> None:
-    # Parse (and thus raise on schema drift / malformed rows) before truncating,
-    # so a bad release never leaves the table empty/partially loaded.
+    # Parse (and thus raise on schema drift / malformed rows) before touching the table at
+    # all; atomic_reload below then guarantees a mid-insert failure never leaves it
+    # empty/partially loaded either.
     rows = [{
         "year":           int(r["year"]),
         "round":          int(r["round"]),
@@ -166,12 +163,7 @@ def _load_results(zf: zipfile.ZipFile, filename: str, table: str) -> None:
         "time_millis":    _int(r.get("timeMillis", "")),
     } for r in _open_csv(zf, filename)]
 
-    ch.truncate_table(table)
-    total = 0
-    for i in range(0, len(rows), _CHUNK):
-        chunk = rows[i:i + _CHUNK]
-        ch.insert_rows(table, chunk)
-        total += len(chunk)
+    total = ch.atomic_reload(table, rows, chunk_size=_CHUNK)
     log.info("loaded", table=table, count=total)
 
 
@@ -199,12 +191,7 @@ def load_qualifying_results(zf: zipfile.ZipFile) -> None:
         "time_millis":    _int(r.get("timeMillis", "")),
     } for r in _open_csv(zf, "f1db-races-qualifying-results.csv")]
 
-    ch.truncate_table("raw_f1db.qualifying_results")
-    total = 0
-    for i in range(0, len(rows), _CHUNK):
-        chunk = rows[i:i + _CHUNK]
-        ch.insert_rows("raw_f1db.qualifying_results", chunk)
-        total += len(chunk)
+    total = ch.atomic_reload("raw_f1db.qualifying_results", rows, chunk_size=_CHUNK)
     log.info("loaded", table="qualifying_results", count=total)
 
 
@@ -219,12 +206,7 @@ def load_pit_stops(zf: zipfile.ZipFile) -> None:
         "time_millis": _int(r.get("timeMillis", "")),
     } for r in _open_csv(zf, "f1db-races-pit-stops.csv")]
 
-    ch.truncate_table("raw_f1db.pit_stops")
-    total = 0
-    for i in range(0, len(rows), _CHUNK):
-        chunk = rows[i:i + _CHUNK]
-        ch.insert_rows("raw_f1db.pit_stops", chunk)
-        total += len(chunk)
+    total = ch.atomic_reload("raw_f1db.pit_stops", rows, chunk_size=_CHUNK)
     log.info("loaded", table="pit_stops", count=total)
 
 
@@ -240,12 +222,7 @@ def load_fastest_laps(zf: zipfile.ZipFile) -> None:
         "time_millis":    _int(r.get("timeMillis", "")),
     } for r in _open_csv(zf, "f1db-races-fastest-laps.csv")]
 
-    ch.truncate_table("raw_f1db.fastest_laps")
-    total = 0
-    for i in range(0, len(rows), _CHUNK):
-        chunk = rows[i:i + _CHUNK]
-        ch.insert_rows("raw_f1db.fastest_laps", chunk)
-        total += len(chunk)
+    total = ch.atomic_reload("raw_f1db.fastest_laps", rows, chunk_size=_CHUNK)
     log.info("loaded", table="fastest_laps", count=total)
 
 
@@ -259,12 +236,7 @@ def load_driver_standings(zf: zipfile.ZipFile) -> None:
         "points":        float(r.get("points") or 0),
     } for r in _open_csv(zf, "f1db-races-driver-standings.csv")]
 
-    ch.truncate_table("raw_f1db.driver_standings")
-    total = 0
-    for i in range(0, len(rows), _CHUNK):
-        chunk = rows[i:i + _CHUNK]
-        ch.insert_rows("raw_f1db.driver_standings", chunk)
-        total += len(chunk)
+    total = ch.atomic_reload("raw_f1db.driver_standings", rows, chunk_size=_CHUNK)
     log.info("loaded", table="driver_standings", count=total)
 
 
@@ -278,12 +250,7 @@ def load_constructor_standings(zf: zipfile.ZipFile) -> None:
         "points":         float(r.get("points") or 0),
     } for r in _open_csv(zf, "f1db-races-constructor-standings.csv")]
 
-    ch.truncate_table("raw_f1db.constructor_standings")
-    total = 0
-    for i in range(0, len(rows), _CHUNK):
-        chunk = rows[i:i + _CHUNK]
-        ch.insert_rows("raw_f1db.constructor_standings", chunk)
-        total += len(chunk)
+    total = ch.atomic_reload("raw_f1db.constructor_standings", rows, chunk_size=_CHUNK)
     log.info("loaded", table="constructor_standings", count=total)
 
 
