@@ -66,7 +66,9 @@ def test_ingest_season_deletes_before_reinserting():
         from ingestion.jolpica import backfill
         backfill.ingest_season(2025)
     mock_ch.delete_rows.assert_any_call(
-        "raw_jolpica.results", "season = 2025 AND round = 1"
+        "raw_jolpica.results",
+        "season = {season:UInt16} AND round = {rnd:UInt16}",
+        parameters={"season": 2025, "rnd": 1},
     )
 
 

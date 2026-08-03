@@ -23,51 +23,47 @@ from ingestion.openf1.backfill import ingest_session
 log = structlog.get_logger()
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--year", type=int, required=True)
-    parser.add_argument(
-        "--rounds",
-        type=int,
-        nargs="+",
-        required=True,
-        help="Jolpica round numbers to re-ingest (e.g. 20 22 24)",
-    )
-    args = parser.parse_args()
+def _latest_per_meeting(sessions: list, session_type: str) -> dict[int, object]:
+    """Return {meeting_key: latest session} for sessions matching `session_type`.
 
-    log.info("fetching session list", year=args.year)
-    all_sessions = endpoints.get_sessions(args.year)
-
-    # OpenF1 labels Sprint races as session_type="Race" too, so sprint weekends have
-    # two "Race" and two "Qualifying" sessions per meeting.  In both cases the
-    # LATER session in the meeting is always the grid-setting one (main qualifying
-    # on Saturday, main race on Sunday).  We pick the latest per meeting before
-    # building the ordinal → meeting_key map.
-
-    # Deduplicate: keep only the LATEST Race per meeting to get the main race.
-    race_by_meeting: dict[int, object] = {}
-    for s in all_sessions:
-        if s.session_type != "Race":
+    OpenF1 labels Sprint races as session_type="Race" too, so sprint weekends have
+    two "Race" and two "Qualifying" sessions per meeting. In both cases the LATER
+    session in the meeting is always the grid-setting one (main qualifying on
+    Saturday, main race on Sunday), so picking latest-by-date-per-meeting correctly
+    resolves to the main session in both cases.
+    """
+    by_meeting: dict[int, object] = {}
+    for s in sessions:
+        if s.session_type != session_type:
             continue
-        prev = race_by_meeting.get(s.meeting_key)
+        prev = by_meeting.get(s.meeting_key)
         if prev is None or s.date_start > prev.date_start:
-            race_by_meeting[s.meeting_key] = s
+            by_meeting[s.meeting_key] = s
+    return by_meeting
 
+
+def resolve_target_sessions(all_sessions: list, rounds: list[int]) -> list:
+    """Resolve each requested 1-based round number to its main Qualifying session.
+
+    Round→session mapping strategy:
+      - Race sessions have no sprint-qualifying ambiguity, so we sort Race sessions
+        by date to establish the 1-based round ordinal.
+      - We then find the Qualifying session with the same meeting_key as that Race
+        session. This correctly skips sprint qualifying sessions that also carry
+        session_type = "Qualifying" in the OpenF1 API.
+
+    Rounds with no matching race or no matching qualifying session are skipped
+    (with a warning logged) rather than raising, so a partially-bad --rounds list
+    still re-ingests everything it can.
+    """
+    race_by_meeting = _latest_per_meeting(all_sessions, "Race")
     main_races = sorted(race_by_meeting.values(), key=lambda s: s.date_start)
     round_to_meeting = {i + 1: s.meeting_key for i, s in enumerate(main_races)}
 
-    # Build meeting_key → qualifying session (main qualifying, not sprint qualifying)
-    # When a meeting has multiple "Qualifying" sessions, take the LATER one.
-    qual_by_meeting: dict[int, object] = {}
-    for s in all_sessions:
-        if s.session_type != "Qualifying":
-            continue
-        prev = qual_by_meeting.get(s.meeting_key)
-        if prev is None or s.date_start > prev.date_start:
-            qual_by_meeting[s.meeting_key] = s
+    qual_by_meeting = _latest_per_meeting(all_sessions, "Qualifying")
 
     target_sessions = []
-    for rnd in args.rounds:
+    for rnd in rounds:
         meeting_key = round_to_meeting.get(rnd)
         if meeting_key is None:
             log.warning("round not found in race list", round=rnd, total=len(main_races))
@@ -86,6 +82,26 @@ def main():
             location=session.location,
             date=session.date_start,
         )
+
+    return target_sessions
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--year", type=int, required=True)
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        nargs="+",
+        required=True,
+        help="Jolpica round numbers to re-ingest (e.g. 20 22 24)",
+    )
+    args = parser.parse_args()
+
+    log.info("fetching session list", year=args.year)
+    all_sessions = endpoints.get_sessions(args.year)
+
+    target_sessions = resolve_target_sessions(all_sessions, args.rounds)
 
     if not target_sessions:
         log.error("no sessions matched — nothing to do")

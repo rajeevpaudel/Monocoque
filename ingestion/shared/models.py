@@ -17,6 +17,18 @@ class RawRecord(BaseModel):
     raw_json: str = Field(alias="_raw_json")
 
 
+def model_to_dict(m: "RawRecord") -> dict:
+    """Flatten a RawRecord (or subclass) into a dict keyed by ClickHouse column names.
+
+    Shared by every source's backfill/incremental module so the alias-renaming logic
+    (ingested_at -> _ingested_at, raw_json -> _raw_json) lives in exactly one place.
+    """
+    d = m.model_dump(by_alias=False)
+    d["_ingested_at"] = d.pop("ingested_at")
+    d["_raw_json"] = d.pop("raw_json")
+    return d
+
+
 # ── Jolpica ──────────────────────────────────────────────────────────────────
 
 

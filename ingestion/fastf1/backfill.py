@@ -50,8 +50,11 @@ def _save_checkpoint(completed: set[str]) -> None:
     try:
         with open(_CHECKPOINT_FILE, "w") as f:
             json.dump(sorted(completed), f)
-    except PermissionError:
-        pass
+    except PermissionError as e:
+        # Don't crash the backfill over a checkpoint write failure, but surface it —
+        # silently losing checkpoint writes means completed work gets re-done (or, if
+        # some entries did save, replayed inconsistently) on the next run.
+        log.warning("could not write backfill checkpoint file", path=_CHECKPOINT_FILE, error=str(e))
 
 
 def _resolve_session_key(

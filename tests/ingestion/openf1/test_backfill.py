@@ -55,7 +55,9 @@ def test_ingest_session_deletes_before_reinserting():
         mock_ep.get_race_control.return_value = []
         from ingestion.openf1 import backfill
         backfill.ingest_session(9900, skip_telemetry=True)
-    mock_ch.delete_rows.assert_any_call("raw_openf1.laps", "session_key = 9900")
+    mock_ch.delete_rows.assert_any_call(
+        "raw_openf1.laps", "session_key = {sk:UInt32}", parameters={"sk": 9900}
+    )
 
 
 def test_ingest_session_records_failed_on_api_error():
@@ -91,10 +93,33 @@ def test_ingest_year_deletes_sessions_before_reinserting():
         from ingestion.openf1 import backfill
         backfill.ingest_year(2020, skip_telemetry=True)
 
-    mock_ch.delete_rows.assert_any_call("raw_openf1.sessions", "year = 2020")
+    mock_ch.delete_rows.assert_any_call(
+        "raw_openf1.sessions", "year = {year:UInt16}", parameters={"year": 2020}
+    )
     delete_pos = [i for i, c in enumerate(mock_ch.mock_calls) if c[0] == "delete_rows"][0]
     insert_pos = [
         i for i, c in enumerate(mock_ch.mock_calls)
         if c[0] == "insert_rows" and c[1][0] == "raw_openf1.sessions"
     ][0]
     assert delete_pos < insert_pos
+
+
+def test_ingest_session_rejects_non_numeric_session_key():
+    """session_key may arrive as an untyped string from an Airflow dag_run.conf
+    (see airflow/dags/session_openf1.py) — it must be validated as numeric before
+    it can reach any downstream SQL/query-parameter construction."""
+    from ingestion.openf1 import backfill
+    import pytest
+    with pytest.raises(ValueError):
+        backfill.ingest_session("9900 OR 1=1", skip_telemetry=True)
+
+
+def test_ingest_session_accepts_numeric_string_session_key():
+    """Airflow templates always render conf values as strings even when the
+    caller passed a JSON int, so a numeric string must still work."""
+    with patch("ingestion.openf1.backfill.log_util.needs_ingestion", return_value=False), \
+         patch("ingestion.openf1.backfill.endpoints") as mock_ep, \
+         patch("ingestion.openf1.backfill.ch"):
+        from ingestion.openf1 import backfill
+        backfill.ingest_session("9900", skip_telemetry=True)
+    mock_ep.get_laps.assert_not_called()

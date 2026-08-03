@@ -23,6 +23,7 @@ import io
 import re
 import urllib.request
 import zipfile
+from collections.abc import Callable
 
 import structlog
 
@@ -33,6 +34,7 @@ log = structlog.get_logger()
 _RELEASES_URL = "https://github.com/f1db/f1db/releases"
 _ZIP_URL = "https://github.com/f1db/f1db/releases/download/{version}/f1db-csv.zip"
 _CHUNK = 5_000
+_VERSION_RE = re.compile(r"^v[\d.]+$")
 
 
 def _latest_version() -> str:
@@ -45,6 +47,8 @@ def _latest_version() -> str:
 
 
 def _download(version: str) -> zipfile.ZipFile:
+    if not _VERSION_RE.match(version):
+        raise ValueError(f"invalid f1db release tag: {version!r} (expected e.g. 'v2026.6.1')")
     url = _ZIP_URL.format(version=version)
     log.info("downloading f1db CSV dump", url=url)
     with urllib.request.urlopen(url) as r:
@@ -256,7 +260,7 @@ def load_constructor_standings(zf: zipfile.ZipFile) -> None:
 
 # ── Registry ─────────────────────────────────────────────────────────────────
 
-LOADERS: list[tuple[str, callable]] = [
+LOADERS: list[tuple[str, Callable]] = [
     ("seasons",               load_seasons),
     ("circuits",              load_circuits),
     ("drivers",               load_drivers),

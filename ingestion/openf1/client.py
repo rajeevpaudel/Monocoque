@@ -1,7 +1,6 @@
 """OpenF1 API client (historical, no auth required)."""
 
 import json
-import random
 import time
 import urllib.parse
 from typing import Any
@@ -9,22 +8,18 @@ from typing import Any
 import httpx
 import structlog
 
+from ingestion.shared.http import RateLimiter
+
 BASE_URL = "https://api.openf1.org/v1"
 _MAX_RETRIES = 3
 _RATE_LIMIT_RPS = 3
-_last_request_time: float = 0.0
+_limiter = RateLimiter(_RATE_LIMIT_RPS, jitter_max=0.1)
 
 log = structlog.get_logger()
 
 
 def _rate_limit() -> None:
-    global _last_request_time
-    min_interval = 1.0 / _RATE_LIMIT_RPS
-    elapsed = time.monotonic() - _last_request_time
-    wait = max(0.0, min_interval - elapsed) + random.uniform(0, 0.1)
-    if wait:
-        time.sleep(wait)
-    _last_request_time = time.monotonic()
+    _limiter.wait()
 
 
 class TooLargeError(Exception):

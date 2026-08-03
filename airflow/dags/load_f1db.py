@@ -56,7 +56,11 @@ def load_f1db():
     @task
     def download(version: str) -> str:
         """Download the CSV zip once to /tmp; skip if already present."""
+        import re
         import urllib.request
+
+        if not re.match(r"^v[\d.]+$", version):
+            raise ValueError(f"invalid f1db release tag: {version!r} (expected e.g. 'v2026.6.1')")
 
         path = f"/tmp/f1db-{version}.zip"
         if os.path.exists(path):

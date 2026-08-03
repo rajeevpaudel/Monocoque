@@ -69,3 +69,13 @@ def test_attach_failure_context_survives_query_error():
     client.query.side_effect = RuntimeError("no such column: season")
     attach_failure_context(failures, client)
     assert "season" not in failures[0]
+
+
+def test_attach_failure_context_skips_unsafe_test_name():
+    """A test_name that isn't a plain identifier must never be interpolated into SQL."""
+    failures = [{"test_name": "assert_ok; DROP TABLE x --", "status": "fail",
+                 "failures": 1, "message": ""}]
+    client = MagicMock()
+    attach_failure_context(failures, client)
+    client.query.assert_not_called()
+    assert "season" not in failures[0]
