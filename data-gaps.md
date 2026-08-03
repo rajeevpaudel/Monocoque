@@ -89,9 +89,18 @@ Insert the Las Vegas Qualifying session row into `dim_sessions` with the correct
 
 ---
 
-## Gap 3 — `dim_circuits.length_km` and `.corners` are NULL for all circuits 🔴
+## Gap 3 — `dim_circuits.length_km` and `.corners` are NULL for all circuits 🔴 (RESOLVED — see update below)
 
-### What's wrong
+### Update
+
+`stg_jolpica__circuits.sql` now falls back to f1db's `length_km`/`turns` (matched via
+dash/underscore-normalized `circuit_id`) for any circuit not covered by the migration 007
+hardcode. 93 of 102 `dim_circuits` rows now have `length_km` populated (up from 0/78). The
+remaining 9 are older circuits and a few slug mismatches (Jolpica's `americas` vs f1db's
+`austin`, etc.) that don't normalize-match and aren't in the hardcoded override list — add
+them to `clickhouse/migrations/007_populate_circuit_stats.sql` if needed.
+
+### What's wrong (original)
 
 ```sql
 SELECT count() as total, countIf(length_km IS NOT NULL) as with_length
