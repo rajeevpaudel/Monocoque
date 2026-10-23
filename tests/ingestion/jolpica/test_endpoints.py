@@ -320,6 +320,24 @@ def test_get_driver_standings():
     assert out[0].wins == 19
 
 
+def test_get_driver_standings_multi_team_season_uses_latest_team():
+    sl = {
+        "DriverStandings": [
+            {
+                "Driver": {"driverId": "bearman"},
+                "Constructors": [{"constructorId": "ferrari"}, {"constructorId": "haas"}],
+                "position": "18",
+                "positionText": "18",
+                "points": "7",
+                "wins": "0",
+            }
+        ]
+    }
+    with _patched([sl]):
+        out = ep.get_driver_standings(2024, 24)
+    assert out[0].constructor_id == "haas"
+
+
 def test_get_driver_standings_no_constructor_listed():
     sl = {
         "DriverStandings": [

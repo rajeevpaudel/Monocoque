@@ -233,7 +233,9 @@ def get_driver_standings(season: int, round_num: int) -> list[JolpicaDriverStand
                     season=season,
                     round=round_num,
                     driver_id=r["Driver"]["driverId"],
-                    constructor_id=r["Constructors"][0]["constructorId"]
+                    # Jolpica lists every team driven for so far this season, oldest first
+                    # (Bearman 2024: [ferrari, haas]); the last one is the current team.
+                    constructor_id=r["Constructors"][-1]["constructorId"]
                     if r.get("Constructors")
                     else "",
                     position=int(r.get("position", 0)),
