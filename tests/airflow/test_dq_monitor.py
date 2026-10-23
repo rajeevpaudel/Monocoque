@@ -17,9 +17,24 @@ from airflow.dags.dq_monitor import attach_failure_context, parse_run_results  #
 def test_parse_run_results_extracts_fail_and_error():
     run_results = {
         "results": [
-            {"unique_id": "test.f1_warehouse.assert_match_rate", "status": "fail", "failures": 20, "message": "20 mismatches"},
-            {"unique_id": "test.f1_warehouse.assert_weather_coverage", "status": "error", "failures": 0, "message": "compile error"},
-            {"unique_id": "test.f1_warehouse.assert_no_future_races", "status": "pass", "failures": 0, "message": ""},
+            {
+                "unique_id": "test.f1_warehouse.assert_match_rate",
+                "status": "fail",
+                "failures": 20,
+                "message": "20 mismatches",
+            },
+            {
+                "unique_id": "test.f1_warehouse.assert_weather_coverage",
+                "status": "error",
+                "failures": 0,
+                "message": "compile error",
+            },
+            {
+                "unique_id": "test.f1_warehouse.assert_no_future_races",
+                "status": "pass",
+                "failures": 0,
+                "message": "",
+            },
         ]
     }
     failures = parse_run_results(run_results)
@@ -41,8 +56,14 @@ def test_parse_run_results_handles_empty_results():
 
 
 def test_attach_failure_context_adds_season_round_when_available():
-    failures = [{"test_name": "assert_all_rounds_have_results", "status": "fail",
-                 "failures": 1, "message": ""}]
+    failures = [
+        {
+            "test_name": "assert_all_rounds_have_results",
+            "status": "fail",
+            "failures": 1,
+            "message": "",
+        }
+    ]
     client = MagicMock()
     client.query.return_value.result_rows = [(2024, 22)]
     attach_failure_context(failures, client)
@@ -51,8 +72,9 @@ def test_attach_failure_context_adds_season_round_when_available():
 
 
 def test_attach_failure_context_leaves_failure_unchanged_when_no_rows():
-    failures = [{"test_name": "assert_weather_coverage", "status": "fail",
-                 "failures": 1, "message": ""}]
+    failures = [
+        {"test_name": "assert_weather_coverage", "status": "fail", "failures": 1, "message": ""}
+    ]
     client = MagicMock()
     client.query.return_value.result_rows = []
     attach_failure_context(failures, client)
@@ -63,8 +85,9 @@ def test_attach_failure_context_leaves_failure_unchanged_when_no_rows():
 def test_attach_failure_context_survives_query_error():
     """A test whose failure table has no season/round columns (or doesn't
     exist) must not blow up the whole alert pipeline."""
-    failures = [{"test_name": "assert_unrelated_check", "status": "fail",
-                 "failures": 1, "message": ""}]
+    failures = [
+        {"test_name": "assert_unrelated_check", "status": "fail", "failures": 1, "message": ""}
+    ]
     client = MagicMock()
     client.query.side_effect = RuntimeError("no such column: season")
     attach_failure_context(failures, client)
@@ -73,8 +96,9 @@ def test_attach_failure_context_survives_query_error():
 
 def test_attach_failure_context_skips_unsafe_test_name():
     """A test_name that isn't a plain identifier must never be interpolated into SQL."""
-    failures = [{"test_name": "assert_ok; DROP TABLE x --", "status": "fail",
-                 "failures": 1, "message": ""}]
+    failures = [
+        {"test_name": "assert_ok; DROP TABLE x --", "status": "fail", "failures": 1, "message": ""}
+    ]
     client = MagicMock()
     attach_failure_context(failures, client)
     client.query.assert_not_called()

@@ -101,10 +101,13 @@ ORDER BY (season, round, driver_id)
 -- OpenF1 timing
 ORDER BY (session_key, driver_number, lap_number)
 
--- OpenF1 telemetry (car_data, location)
-PARTITION BY (toYear(date), session_key)
+-- OpenF1 telemetry (car_data, location) — yearly partitions (migration 011)
+PARTITION BY toYear(date)
 ORDER BY (session_key, driver_number, date)
 ```
+
+Migrations in `clickhouse/migrations/` are applied once each (tracked in `raw_meta.schema_migrations`).
+Never edit an applied file — add a new numbered migration instead.
 
 ---
 
@@ -145,17 +148,17 @@ ORDER BY (session_key, driver_number, date)
 - Docker + Docker Compose v2
 - Python 3.10+
 
-### 1. Fix dbt directory permissions
-
-The Airflow container runs as uid `50000` but the `dbt/` directory is owned by your host user.
-dbt needs write access to `dbt/`, `dbt/logs/`, `dbt/dbt_packages/`, and `dbt/target/` to install
-packages and write compiled output. Run once after cloning:
+### 1. Set up the environment
 
 ```bash
-mkdir -p dbt/logs dbt/dbt_packages dbt/target
-chmod 777 dbt
-chmod -R 777 dbt/logs dbt/dbt_packages dbt/target
+make setup    # .venv + pinned deps (incl. dbt) + pre-commit hooks
 ```
+
+The Airflow containers bind-mount `dbt/` and `airflow/logs/`. `make up` writes
+`AIRFLOW_UID=$(id -u)` to `.env` (creating it from `.env.example` if needed) so the containers run as
+your host user and can write to those directories — no `chmod 777` or `sudo`. If you pin a different
+`AIRFLOW_UID`, `make fix-perms` opens up only the generated directories (`dbt/target`, `dbt/logs`,
+`dbt/dbt_packages`, `airflow/logs`).
 
 ### 2. Build the Airflow image
 
@@ -170,7 +173,7 @@ docker compose build
 ### 3. Start the stack
 
 ```bash
-docker compose up -d
+make up        # or: docker compose up -d
 ```
 
 | Service | URL |
@@ -223,28 +226,37 @@ dbt test --profiles-dir .
 
 ```bash
 # Or
-make dbt-run
-make dbt-test
+make dbt-build     # seed + run + test (incl. unit tests), excluding the elementary package
 ```
+
+`dbt build` also runs the **unit tests** in `dbt/models/unit_tests.yml` (clean-lap flags, champion
+logic incl. DSQ / incomplete seasons, points-system expansion) against mocked inputs.
+`dbt/models/exposures.yml` declares the three Metabase dashboards as **exposures**, so lineage shows
+which marts feed them: `dbt ls -s +exposure:metabase_championship`.
 
 ---
 
 ## Makefile Reference
 
 ```bash
-make up                              # Start Docker services
-make down                            # Stop Docker services
+make setup                           # .venv + deps + pre-commit hooks
+make up / build-up / down            # Docker services (up also sets AIRFLOW_UID)
 make migrate                         # Apply ClickHouse migrations
-make reset-data                      # Drop all databases and re-apply migrations
-make ingest-year YEAR=2024           # Ingest Jolpica + OpenF1 for a year, then run dbt
-make ingest-year YEAR=2024 SKIP_TELEMETRY=1
+make reset-data                      # Drop all warehouse databases and re-apply migrations
+make clear-raw                       # Truncate every raw_* table
+make load-f1db                       # f1db history 1950 → upcoming season
+make ingest-year YEAR=2024 [SKIP_TELEMETRY=1]   # Jolpica + OpenF1 for a year, then dbt-build
 make backfill-jolpica START=2018 END=2022
-make backfill-openf1 START=2023 END=2024
-make dbt-run
-make dbt-test
-make lint
-make test
+make backfill-openf1 START=2023 END=2024 [SKIP_TELEMETRY=1]
+make backfill-fastf1 START=2024 END=2024 [ROUNDS=1,5]   # needs `fastf1 auth f1tv` once
+make dbt-deps / dbt-seed / dbt-run / dbt-test / dbt-build / dbt-docs
+make metabase-dashboards             # needs MB_ADMIN_PASSWORD
+make sample-export / sample-load     # CI warehouse sample
+make lint / format / test / check    # ruff (check + format) and pytest
 ```
+
+Ingestion CLIs exit non-zero when any table/session fails to load (it is retried on the next run),
+and the Airflow tasks fail accordingly instead of reporting success on a partial load.
 
 ---
 
@@ -328,9 +340,10 @@ Idempotent — re-run after changing the card definitions. `metabase/queries.sql
 
 ## CI
 
-`.github/workflows/ci.yml` runs ruff + pytest, then a `dbt-build` job that applies the migrations to a
+`.github/workflows/ci.yml` runs `ruff check`, `ruff format --check` and pytest (the same hooks run locally
+via pre-commit after `make setup`), then a `dbt-build` job that applies the migrations to a
 ClickHouse service container, loads a small real sample (2024 Bahrain + China sprint weekend, f1db 2026 R1)
-from `tests/fixtures/warehouse_sample/`, and runs `dbt seed` + `dbt build` (all models and data tests).
+from `tests/fixtures/warehouse_sample/`, and runs `dbt seed` + `dbt build` (all models, data tests and unit tests).
 dbt versions are pinned (`pip install -e ".[dbt]"`, `dbt/packages.yml`). Regenerate the sample from a
 populated local warehouse with `python scripts/sample_data.py export`.
 

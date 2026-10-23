@@ -72,7 +72,7 @@ SELECT
     round(r.avg_grid_position, 2)                  AS avg_grid_position,
     r.laps_completed                               AS laps_completed,
     round(points / nullIf(r.starts, 0), 2)         AS points_per_start,
-    toUInt8(fs.championship_position = 1 AND is_season_complete = 1) AS is_champion
+    toUInt8(ifNull(fs.championship_position = 1, 0) AND is_season_complete = 1) AS is_champion
 FROM races r
 LEFT JOIN final_standings fs ON fs.season = r.season AND fs.driver_id = r.driver_id
 LEFT JOIN sprints s          ON s.season = r.season  AND s.driver_id = r.driver_id

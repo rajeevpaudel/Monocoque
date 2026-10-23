@@ -40,3 +40,6 @@ metabase.pwd
 
 # Ingestion checkpoints (local run state, not source)
 ingestion/*/.backfill_checkpoint.json
+
+# Migration runner lock (created/removed at runtime)
+clickhouse/.migrate.lock

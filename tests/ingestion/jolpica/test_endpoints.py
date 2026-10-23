@@ -38,9 +38,18 @@ def test_get_seasons():
 
 def test_get_circuits_full_fields():
     record = {
-        "circuitId": "monza", "url": "https://x", "circuitName": "Monza",
-        "Location": {"locality": "Monza", "country": "Italy", "lat": "45.6", "long": "9.28", "alt": "162"},
-        "length": "5.793", "turns": "11",
+        "circuitId": "monza",
+        "url": "https://x",
+        "circuitName": "Monza",
+        "Location": {
+            "locality": "Monza",
+            "country": "Italy",
+            "lat": "45.6",
+            "long": "9.28",
+            "alt": "162",
+        },
+        "length": "5.793",
+        "turns": "11",
     }
     with _patched([record]):
         out = ep.get_circuits()
@@ -53,7 +62,9 @@ def test_get_circuits_full_fields():
 
 def test_get_circuits_missing_optional_fields():
     record = {
-        "circuitId": "monza", "url": "https://x", "circuitName": "Monza",
+        "circuitId": "monza",
+        "url": "https://x",
+        "circuitName": "Monza",
         "Location": {"locality": "Monza", "country": "Italy", "lat": "45.6", "long": "9.28"},
     }
     with _patched([record]):
@@ -65,7 +76,16 @@ def test_get_circuits_missing_optional_fields():
 
 
 def test_get_constructors():
-    with _patched([{"constructorId": "ferrari", "url": "https://x", "name": "Ferrari", "nationality": "Italian"}]):
+    with _patched(
+        [
+            {
+                "constructorId": "ferrari",
+                "url": "https://x",
+                "name": "Ferrari",
+                "nationality": "Italian",
+            }
+        ]
+    ):
         out = ep.get_constructors()
     assert out[0].constructor_id == "ferrari"
 
@@ -92,8 +112,11 @@ def test_get_drivers_with_permanent_number():
 
 def test_get_races():
     record = {
-        "round": "4", "raceName": "Miami GP",
-        "Circuit": {"circuitId": "miami"}, "date": "2024-05-05", "url": "https://x",
+        "round": "4",
+        "raceName": "Miami GP",
+        "Circuit": {"circuitId": "miami"},
+        "date": "2024-05-05",
+        "url": "https://x",
     }
     with _patched([record]):
         out = ep.get_races(2024)
@@ -113,10 +136,20 @@ def _race_wrapper(results):
 
 def test_get_results_finished_driver():
     result = {
-        "Driver": {"driverId": "verstappen"}, "Constructor": {"constructorId": "red_bull"},
-        "grid": "1", "position": "1", "positionText": "1", "points": "25", "laps": "57",
-        "status": "Finished", "Time": {"millis": "5400000"},
-        "FastestLap": {"rank": "1", "Time": {"time": "1:23.456"}, "AverageSpeed": {"speed": "220.5"}},
+        "Driver": {"driverId": "verstappen"},
+        "Constructor": {"constructorId": "red_bull"},
+        "grid": "1",
+        "position": "1",
+        "positionText": "1",
+        "points": "25",
+        "laps": "57",
+        "status": "Finished",
+        "Time": {"millis": "5400000"},
+        "FastestLap": {
+            "rank": "1",
+            "Time": {"time": "1:23.456"},
+            "AverageSpeed": {"speed": "220.5"},
+        },
     }
     with _patched(_race_wrapper([result])):
         out = ep.get_results(2024, 1)
@@ -131,9 +164,15 @@ def test_get_results_finished_driver():
 
 def test_get_results_dnf_driver_has_null_position():
     result = {
-        "Driver": {"driverId": "sargeant"}, "Constructor": {"constructorId": "williams"},
-        "grid": "20", "position": "R", "positionText": "R", "positionOrder": "20",
-        "points": "0", "laps": "10", "status": "Retired",
+        "Driver": {"driverId": "sargeant"},
+        "Constructor": {"constructorId": "williams"},
+        "grid": "20",
+        "position": "R",
+        "positionText": "R",
+        "positionOrder": "20",
+        "points": "0",
+        "laps": "10",
+        "status": "Retired",
     }
     with _patched(_race_wrapper([result])):
         out = ep.get_results(2024, 1)
@@ -147,9 +186,15 @@ def test_get_results_dnf_driver_has_null_position():
 
 def test_get_results_fastest_lap_without_average_speed():
     result = {
-        "Driver": {"driverId": "verstappen"}, "Constructor": {"constructorId": "red_bull"},
-        "grid": "1", "position": "1", "positionText": "1", "points": "25", "laps": "57",
-        "status": "Finished", "FastestLap": {"rank": "1", "Time": {"time": "1:23.456"}},
+        "Driver": {"driverId": "verstappen"},
+        "Constructor": {"constructorId": "red_bull"},
+        "grid": "1",
+        "position": "1",
+        "positionText": "1",
+        "points": "25",
+        "laps": "57",
+        "status": "Finished",
+        "FastestLap": {"rank": "1", "Time": {"time": "1:23.456"}},
     }
     with _patched(_race_wrapper([result])):
         out = ep.get_results(2024, 1)
@@ -162,8 +207,12 @@ def test_get_results_fastest_lap_without_average_speed():
 
 def test_get_qualifying():
     record = {
-        "Driver": {"driverId": "leclerc"}, "Constructor": {"constructorId": "ferrari"},
-        "position": "1", "Q1": "1:20.1", "Q2": "1:19.5", "Q3": "1:19.0",
+        "Driver": {"driverId": "leclerc"},
+        "Constructor": {"constructorId": "ferrari"},
+        "position": "1",
+        "Q1": "1:20.1",
+        "Q2": "1:19.5",
+        "Q3": "1:19.0",
     }
     with _patched([{"QualifyingResults": [record]}]):
         out = ep.get_qualifying(2024, 1)
@@ -174,8 +223,10 @@ def test_get_qualifying():
 
 def test_get_qualifying_missing_q3_for_eliminated_driver():
     record = {
-        "Driver": {"driverId": "sargeant"}, "Constructor": {"constructorId": "williams"},
-        "position": "18", "Q1": "1:22.1",
+        "Driver": {"driverId": "sargeant"},
+        "Constructor": {"constructorId": "williams"},
+        "position": "18",
+        "Q1": "1:22.1",
     }
     with _patched([{"QualifyingResults": [record]}]):
         out = ep.get_qualifying(2024, 1)
@@ -188,9 +239,15 @@ def test_get_qualifying_missing_q3_for_eliminated_driver():
 
 def test_get_sprint():
     record = {
-        "Driver": {"driverId": "norris"}, "Constructor": {"constructorId": "mclaren"},
-        "grid": "2", "position": "1", "positionText": "1", "points": "8", "laps": "19",
-        "status": "Finished", "Time": {"millis": "1800000"},
+        "Driver": {"driverId": "norris"},
+        "Constructor": {"constructorId": "mclaren"},
+        "grid": "2",
+        "position": "1",
+        "positionText": "1",
+        "points": "8",
+        "laps": "19",
+        "status": "Finished",
+        "Time": {"millis": "1800000"},
     }
     with _patched([{"SprintResults": [record]}]):
         out = ep.get_sprint(2024, 5)
@@ -225,7 +282,17 @@ def test_get_laps_expands_timings_per_driver():
 
 
 def test_get_pit_stops():
-    race = {"PitStops": [{"driverId": "leclerc", "stop": "1", "lap": "15", "time": "14:23:15", "duration": "2.345"}]}
+    race = {
+        "PitStops": [
+            {
+                "driverId": "leclerc",
+                "stop": "1",
+                "lap": "15",
+                "time": "14:23:15",
+                "duration": "2.345",
+            }
+        ]
+    }
     with _patched([race]):
         out = ep.get_pit_stops(2024, 1)
     assert out[0].duration_millis == 2_345
@@ -238,8 +305,12 @@ def test_get_driver_standings():
     sl = {
         "DriverStandings": [
             {
-                "Driver": {"driverId": "verstappen"}, "Constructors": [{"constructorId": "red_bull"}],
-                "position": "1", "positionText": "1", "points": "575", "wins": "19",
+                "Driver": {"driverId": "verstappen"},
+                "Constructors": [{"constructorId": "red_bull"}],
+                "position": "1",
+                "positionText": "1",
+                "points": "575",
+                "wins": "19",
             }
         ]
     }
@@ -252,7 +323,13 @@ def test_get_driver_standings():
 def test_get_driver_standings_no_constructor_listed():
     sl = {
         "DriverStandings": [
-            {"Driver": {"driverId": "x"}, "position": "20", "positionText": "20", "points": "0", "wins": "0"}
+            {
+                "Driver": {"driverId": "x"},
+                "position": "20",
+                "positionText": "20",
+                "points": "0",
+                "wins": "0",
+            }
         ]
     }
     with _patched([sl]):
@@ -263,7 +340,13 @@ def test_get_driver_standings_no_constructor_listed():
 def test_get_constructor_standings():
     sl = {
         "ConstructorStandings": [
-            {"Constructor": {"constructorId": "red_bull"}, "position": "1", "positionText": "1", "points": "860", "wins": "21"}
+            {
+                "Constructor": {"constructorId": "red_bull"},
+                "position": "1",
+                "positionText": "1",
+                "points": "860",
+                "wins": "21",
+            }
         ]
     }
     with _patched([sl]):

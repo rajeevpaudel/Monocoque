@@ -89,7 +89,7 @@ def atomic_reload(table: str, rows: list[dict[str, Any]], chunk_size: int = 5_00
     try:
         total = 0
         for i in range(0, len(rows), chunk_size):
-            chunk = rows[i:i + chunk_size]
+            chunk = rows[i : i + chunk_size]
             insert_rows(shadow, chunk)
             total += len(chunk)
         client.command(f"EXCHANGE TABLES {table} AND {shadow}")

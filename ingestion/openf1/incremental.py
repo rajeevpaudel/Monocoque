@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import sys
 
 import structlog
 
@@ -21,8 +22,10 @@ def main():
     parser.add_argument("--skip-telemetry", action="store_true")
     args = parser.parse_args()
 
-    ingest_session(args.session_key, skip_telemetry=args.skip_telemetry)
-    log.info("done", session_key=args.session_key)
+    ok = ingest_session(args.session_key, skip_telemetry=args.skip_telemetry)
+    log.info("done", session_key=args.session_key, ok=ok)
+    if not ok:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

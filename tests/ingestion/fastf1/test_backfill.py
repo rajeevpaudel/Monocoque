@@ -70,16 +70,17 @@ def test_build_session_index_deduplicates_sprint_race():
 
     sessions = [
         # Meeting 1: normal weekend — one Race, one Qualifying
-        _make_session(101, "Race",       1, "2024-03-02T15:00:00"),
+        _make_session(101, "Race", 1, "2024-03-02T15:00:00"),
         _make_session(102, "Qualifying", 1, "2024-03-01T15:00:00"),
         # Meeting 2: sprint weekend — two Race sessions, take the later one
-        _make_session(201, "Race",       2, "2024-03-09T13:00:00"),  # sprint race
-        _make_session(202, "Race",       2, "2024-03-10T15:00:00"),  # main race (later → round 2)
+        _make_session(201, "Race", 2, "2024-03-09T13:00:00"),  # sprint race
+        _make_session(202, "Race", 2, "2024-03-10T15:00:00"),  # main race (later → round 2)
         _make_session(203, "Qualifying", 2, "2024-03-09T15:00:00"),
     ]
 
     with patch("ingestion.fastf1.backfill.openf1_endpoints.get_sessions", return_value=sessions):
         from ingestion.fastf1.backfill import _build_session_index
+
         index, rounds = _build_session_index(2024)
 
     assert rounds == [1, 2]
@@ -91,3 +92,23 @@ def test_build_session_index_deduplicates_sprint_race():
     assert index[(2, "Race")] == 202
     # Round 2: Qualifying maps to session 203
     assert index[(2, "Qualifying")] == 203
+
+
+def test_ingest_year_reports_failed_sessions_without_checkpointing():
+    from ingestion.fastf1 import backfill
+
+    saved = []
+    with (
+        patch(
+            "ingestion.fastf1.backfill._build_session_index",
+            return_value=({(1, "Race"): 9001}, [1]),
+        ),
+        patch("ingestion.fastf1.backfill.IDENTIFIERS", ["R"]),
+        patch(
+            "ingestion.fastf1.backfill.client.get_session_telemetry",
+            side_effect=RuntimeError("401"),
+        ),
+    ):
+        failed = backfill.ingest_year(2024, set(), on_complete=saved.append)
+    assert failed == ["2024-1-R"]
+    assert saved == []

@@ -151,21 +151,32 @@ def ingest_and_dbt():
             ).result_rows[0][0]
             if f1db_count > 0 and lap_times_count > 0:
                 import structlog
+
                 structlog.get_logger().info(
                     "skipping jolpica API — f1db and lap times already present", year=year
                 )
                 return
 
         from ingestion.jolpica.backfill import ingest_reference_tables, ingest_season
+        from ingestion.shared.errors import IngestionIncomplete
+
         ingest_reference_tables()
-        ingest_season(year)
+        failed = ingest_season(year)
+        if failed:
+            raise IngestionIncomplete(f"jolpica {year} rounds", failed)
 
     @task
     def ingest_openf1(year: int, skip_telemetry: bool) -> None:
         from ingestion.openf1.backfill import ingest_year
 
-        skip = skip_telemetry if isinstance(skip_telemetry, bool) else skip_telemetry.lower() == "true"
-        ingest_year(int(year), skip_telemetry=skip)
+        skip = (
+            skip_telemetry if isinstance(skip_telemetry, bool) else skip_telemetry.lower() == "true"
+        )
+        from ingestion.shared.errors import IngestionIncomplete
+
+        failed = ingest_year(int(year), skip_telemetry=skip)
+        if failed:
+            raise IngestionIncomplete(f"openf1 {year} sessions", failed)
 
     @task
     def ingest_fastf1(year: int) -> None:
@@ -212,11 +223,17 @@ def ingest_and_dbt():
                 if identifier:
                     completed.add(f"{year}-{round_num}-{identifier}")
 
-        ingest_year(year, completed=completed, on_complete=lambda _: None)
+        from ingestion.shared.errors import IngestionIncomplete
+
+        failed = ingest_year(year, completed=completed, on_complete=lambda _: None)
+        if failed:
+            raise IngestionIncomplete(f"fastf1 {year} sessions", failed)
 
     # ── dbt pipeline ───────────────────────────────────────────────────────────
 
-    @task
+    # all_done: an ingest task that ends partially failed (red, after retries) must not block
+    # dbt from building everything that did load — dbt tests then flag what's missing.
+    @task(trigger_rule="all_done")
     def dbt_deps() -> None:
         _dbt("deps")
         _dbt("seed")

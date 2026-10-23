@@ -10,6 +10,7 @@ Re-running is safe: completed (year, round, identifier) triples are checkpointed
 import argparse
 import json
 import os
+import sys
 from collections.abc import Callable
 
 import fastf1
@@ -106,7 +107,8 @@ def ingest_year(
     completed: set[str],
     on_complete: Callable[[set[str]], None] = _save_checkpoint,
     only_rounds: set[int] | None = None,
-) -> None:
+) -> list[str]:
+    """Returns checkpoint keys ("{year}-{round}-{identifier}") that failed and will be retried."""
     ylog = log.bind(year=year)
     ylog.info("building session index from OpenF1")
     index, rounds = _build_session_index(year)
@@ -114,6 +116,8 @@ def ingest_year(
 
     if only_rounds:
         rounds = [r for r in rounds if r in only_rounds]
+
+    failed: list[str] = []
 
     for round_num in rounds:
         for identifier in IDENTIFIERS:
@@ -138,6 +142,7 @@ def ingest_year(
                 continue
             except Exception as e:
                 slog.warning("failed — will retry next run", error=str(e))
+                failed.append(ck)
                 continue  # intentionally not checkpointed; retry on next run
 
             if arrow_table.num_rows > 0:
@@ -148,6 +153,8 @@ def ingest_year(
 
             completed.add(ck)
             on_complete(completed)
+
+    return failed
 
 
 def main() -> None:
@@ -173,10 +180,16 @@ def main() -> None:
 
     log.info("starting backfill", start=args.start, end=args.end, already_done=len(completed))
 
-    for year in range(args.start, args.end + 1):
-        ingest_year(year, completed, only_rounds=set(args.rounds) if args.rounds else None)
+    only = set(args.rounds) if args.rounds else None
+    failed = [
+        ck
+        for year in range(args.start, args.end + 1)
+        for ck in ingest_year(year, completed, only_rounds=only)
+    ]
 
-    log.info("backfill complete", start=args.start, end=args.end)
+    log.info("backfill complete", start=args.start, end=args.end, failed_sessions=failed)
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -90,6 +90,8 @@ models:
     columns:
       - name: points
         tests: [not_null]
+      - name: is_champion
+        tests: [not_null]
 
   - name: mart_constructor_season_standings
     description: Final constructors' championship standings plus season stats (wins, 1-2s, drivers used).
@@ -97,6 +99,9 @@ models:
       - dbt_utils.unique_combination_of_columns:
           arguments:
             combination_of_columns: [season, constructor_id]
+    columns:
+      - name: is_champion
+        tests: [not_null]
 
   - name: mart_teammate_head_to_head
     description: >

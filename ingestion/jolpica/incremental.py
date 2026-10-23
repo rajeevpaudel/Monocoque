@@ -6,6 +6,7 @@ Usage:
 """
 
 import argparse
+import sys
 
 from ingestion.jolpica.backfill import ingest_round
 
@@ -17,7 +18,8 @@ def main():
     parser.add_argument("--season", type=int, required=True)
     parser.add_argument("--round", type=int, required=True)
     args = parser.parse_args()
-    ingest_round(args.season, args.round)
+    if not ingest_round(args.season, args.round):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

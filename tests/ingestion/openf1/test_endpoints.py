@@ -39,11 +39,22 @@ def test_time_chunks_handles_timezone_offset_suffix():
 
 def test_get_sessions_maps_all_fields():
     record = {
-        "session_key": 9900, "session_name": "Qualifying", "session_type": "Qualifying",
-        "status": "completed", "gmt_offset": "05:00:00", "path": "2024/x/", "date_start": "2024-01-01",
-        "date_end": "2024-01-01", "year": 2024, "circuit_key": 63, "circuit_short_name": "Jeddah",
-        "country_key": 153, "country_code": "SAU", "country_name": "Saudi Arabia",
-        "location": "Jeddah", "meeting_key": 1141,
+        "session_key": 9900,
+        "session_name": "Qualifying",
+        "session_type": "Qualifying",
+        "status": "completed",
+        "gmt_offset": "05:00:00",
+        "path": "2024/x/",
+        "date_start": "2024-01-01",
+        "date_end": "2024-01-01",
+        "year": 2024,
+        "circuit_key": 63,
+        "circuit_short_name": "Jeddah",
+        "country_key": 153,
+        "country_code": "SAU",
+        "country_name": "Saudi Arabia",
+        "location": "Jeddah",
+        "meeting_key": 1141,
     }
     with _patched_get([record]):
         out = ep.get_sessions(2024)
@@ -67,9 +78,15 @@ def test_get_drivers_defaults_none_fields_to_empty_string():
 
 def test_get_drivers_populates_provided_fields():
     record = {
-        "session_key": 9900, "driver_number": 1, "broadcast_name": "M VERSTAPPEN",
-        "full_name": "Max Verstappen", "name_acronym": "VER", "team_name": "Red Bull",
-        "team_colour": "3671C6", "first_name": "Max", "last_name": "Verstappen",
+        "session_key": 9900,
+        "driver_number": 1,
+        "broadcast_name": "M VERSTAPPEN",
+        "full_name": "Max Verstappen",
+        "name_acronym": "VER",
+        "team_name": "Red Bull",
+        "team_colour": "3671C6",
+        "first_name": "Max",
+        "last_name": "Verstappen",
     }
     with _patched_get([record]):
         out = ep.get_drivers(9900)
@@ -84,7 +101,12 @@ def test_get_laps_skips_rows_without_date_start():
     is unusable downstream — it must be dropped, not passed through with a null."""
     records = [
         {"session_key": 1, "driver_number": 1, "lap_number": 1, "date_start": None},
-        {"session_key": 1, "driver_number": 1, "lap_number": 2, "date_start": "2024-01-01T00:00:00"},
+        {
+            "session_key": 1,
+            "driver_number": 1,
+            "lap_number": 2,
+            "date_start": "2024-01-01T00:00:00",
+        },
     ]
     with _patched_get(records):
         out = ep.get_laps(1)
@@ -94,8 +116,12 @@ def test_get_laps_skips_rows_without_date_start():
 
 def test_get_laps_filters_none_from_segment_lists():
     record = {
-        "session_key": 1, "driver_number": 1, "lap_number": 1, "date_start": "2024-01-01T00:00:00",
-        "segments_sector_1": [2048, None, 2049], "segments_sector_2": None,
+        "session_key": 1,
+        "driver_number": 1,
+        "lap_number": 1,
+        "date_start": "2024-01-01T00:00:00",
+        "segments_sector_1": [2048, None, 2049],
+        "segments_sector_2": None,
     }
     with _patched_get([record]):
         out = ep.get_laps(1)
@@ -108,7 +134,13 @@ def test_get_laps_filters_none_from_segment_lists():
 
 
 def test_get_pit():
-    record = {"session_key": 1, "driver_number": 1, "lap_number": 15, "date": "2024-01-01", "pit_duration": 2.3}
+    record = {
+        "session_key": 1,
+        "driver_number": 1,
+        "lap_number": 15,
+        "date": "2024-01-01",
+        "pit_duration": 2.3,
+    }
     with _patched_get([record]):
         out = ep.get_pit(1)
     assert out[0].pit_duration == 2.3
@@ -119,8 +151,20 @@ def test_get_pit():
 
 def test_get_stints_skips_rows_without_lap_start():
     records = [
-        {"session_key": 1, "driver_number": 1, "stint_number": 1, "lap_start": None, "compound": "SOFT"},
-        {"session_key": 1, "driver_number": 1, "stint_number": 2, "lap_start": 10, "compound": "MEDIUM"},
+        {
+            "session_key": 1,
+            "driver_number": 1,
+            "stint_number": 1,
+            "lap_start": None,
+            "compound": "SOFT",
+        },
+        {
+            "session_key": 1,
+            "driver_number": 1,
+            "stint_number": 2,
+            "lap_start": 10,
+            "compound": "MEDIUM",
+        },
     ]
     with _patched_get(records):
         out = ep.get_stints(1)
@@ -140,7 +184,13 @@ def test_get_stints_defaults_missing_compound_and_tyre_age():
 
 
 def test_get_intervals():
-    record = {"session_key": 1, "driver_number": 1, "date": "2024-01-01", "gap_to_leader": 1.5, "interval": 0.3}
+    record = {
+        "session_key": 1,
+        "driver_number": 1,
+        "date": "2024-01-01",
+        "gap_to_leader": 1.5,
+        "interval": 0.3,
+    }
     with _patched_get([record]):
         out = ep.get_intervals(1)
     assert out[0].gap_to_leader == 1.5
@@ -170,17 +220,38 @@ def test_get_race_control_defaults_optional_fields():
 
 def _driver(number=1):
     from ingestion.shared.models import OpenF1Driver
-    return OpenF1Driver(session_key=1, driver_number=number, broadcast_name="", full_name="",
-                         name_acronym="", team_name="", team_colour="", first_name="", last_name="",
-                         _raw_json="{}")
+
+    return OpenF1Driver(
+        session_key=1,
+        driver_number=number,
+        broadcast_name="",
+        full_name="",
+        name_acronym="",
+        team_name="",
+        team_colour="",
+        first_name="",
+        last_name="",
+        _raw_json="{}",
+    )
 
 
 def test_get_car_data_fetches_per_driver():
-    with patch("ingestion.openf1.endpoints.get_drivers", return_value=[_driver(1), _driver(44)]), \
-         patch("ingestion.openf1.endpoints.get") as mock_get:
+    with (
+        patch("ingestion.openf1.endpoints.get_drivers", return_value=[_driver(1), _driver(44)]),
+        patch("ingestion.openf1.endpoints.get") as mock_get,
+    ):
         mock_get.return_value = [
-            {"session_key": 1, "driver_number": 1, "date": "2024-01-01", "rpm": 1000, "speed": 200,
-             "n_gear": 4, "throttle": 100, "brake": 0, "drs": 0}
+            {
+                "session_key": 1,
+                "driver_number": 1,
+                "date": "2024-01-01",
+                "rpm": 1000,
+                "speed": 200,
+                "n_gear": 4,
+                "throttle": 100,
+                "brake": 0,
+                "drs": 0,
+            }
         ]
         out = ep.get_car_data(1)
     assert mock_get.call_count == 2
@@ -188,13 +259,29 @@ def test_get_car_data_fetches_per_driver():
 
 
 def test_get_car_data_falls_back_to_chunked_fetch_on_422():
-    with patch("ingestion.openf1.endpoints.get_drivers", return_value=[_driver(1)]), \
-         patch("ingestion.openf1.endpoints._session_dates", return_value=("2024-01-01T00:00:00", "2024-01-01T00:30:00")), \
-         patch("ingestion.openf1.endpoints.get") as mock_get:
+    with (
+        patch("ingestion.openf1.endpoints.get_drivers", return_value=[_driver(1)]),
+        patch(
+            "ingestion.openf1.endpoints._session_dates",
+            return_value=("2024-01-01T00:00:00", "2024-01-01T00:30:00"),
+        ),
+        patch("ingestion.openf1.endpoints.get") as mock_get,
+    ):
         mock_get.side_effect = [
             TooLargeError("too big"),
-            [{"session_key": 1, "driver_number": 1, "date": "2024-01-01", "rpm": 1, "speed": 1,
-              "n_gear": 1, "throttle": 1, "brake": 0, "drs": 0}],
+            [
+                {
+                    "session_key": 1,
+                    "driver_number": 1,
+                    "date": "2024-01-01",
+                    "rpm": 1,
+                    "speed": 1,
+                    "n_gear": 1,
+                    "throttle": 1,
+                    "brake": 0,
+                    "drs": 0,
+                }
+            ],
         ]
         out = ep.get_car_data(1)
     assert len(out) == 1
@@ -202,9 +289,14 @@ def test_get_car_data_falls_back_to_chunked_fetch_on_422():
 
 
 def test_get_location_falls_back_to_chunked_fetch_on_422():
-    with patch("ingestion.openf1.endpoints.get_drivers", return_value=[_driver(1)]), \
-         patch("ingestion.openf1.endpoints._session_dates", return_value=("2024-01-01T00:00:00", "2024-01-01T00:30:00")), \
-         patch("ingestion.openf1.endpoints.get") as mock_get:
+    with (
+        patch("ingestion.openf1.endpoints.get_drivers", return_value=[_driver(1)]),
+        patch(
+            "ingestion.openf1.endpoints._session_dates",
+            return_value=("2024-01-01T00:00:00", "2024-01-01T00:30:00"),
+        ),
+        patch("ingestion.openf1.endpoints.get") as mock_get,
+    ):
         mock_get.side_effect = [
             TooLargeError("too big"),
             [{"session_key": 1, "driver_number": 1, "date": "2024-01-01", "x": 1, "y": 2, "z": 3}],
@@ -215,8 +307,10 @@ def test_get_location_falls_back_to_chunked_fetch_on_422():
 
 
 def test_get_car_data_no_drivers_returns_empty_without_fetching():
-    with patch("ingestion.openf1.endpoints.get_drivers", return_value=[]), \
-         patch("ingestion.openf1.endpoints.get") as mock_get:
+    with (
+        patch("ingestion.openf1.endpoints.get_drivers", return_value=[]),
+        patch("ingestion.openf1.endpoints.get") as mock_get,
+    ):
         out = ep.get_car_data(1)
     assert out == []
     mock_get.assert_not_called()
@@ -236,17 +330,30 @@ def test_session_dates_raises_when_session_not_found():
 
 
 def test_session_dates_falls_back_to_date_start_when_no_date_end():
-    with patch("ingestion.openf1.endpoints.get", return_value=[{"date_start": "2024-01-01T00:00:00", "date_end": None}]):
+    with patch(
+        "ingestion.openf1.endpoints.get",
+        return_value=[{"date_start": "2024-01-01T00:00:00", "date_end": None}],
+    ):
         start, end = ep._session_dates(9900)
     assert start == end == "2024-01-01T00:00:00"
 
 
 def test_get_position_parses_records_and_drops_missing_positions():
     records = [
-        {"date": "2024-03-02T15:03:00+00:00", "session_key": 9472, "meeting_key": 1229,
-         "driver_number": 1, "position": 1},
-        {"date": "2024-03-02T15:04:00+00:00", "session_key": 9472, "meeting_key": 1229,
-         "driver_number": 16, "position": None},
+        {
+            "date": "2024-03-02T15:03:00+00:00",
+            "session_key": 9472,
+            "meeting_key": 1229,
+            "driver_number": 1,
+            "position": 1,
+        },
+        {
+            "date": "2024-03-02T15:04:00+00:00",
+            "session_key": 9472,
+            "meeting_key": 1229,
+            "driver_number": 16,
+            "position": None,
+        },
     ]
     with patch("ingestion.openf1.endpoints.get", return_value=records) as mock_get:
         rows = ep.get_position(9472)

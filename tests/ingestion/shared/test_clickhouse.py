@@ -37,8 +37,13 @@ def test_get_client_reads_env(monkeypatch):
 
 
 def test_get_client_defaults_when_env_unset(monkeypatch):
-    for var in ("CLICKHOUSE_HOST", "CLICKHOUSE_PORT", "CLICKHOUSE_USER",
-                "CLICKHOUSE_PASSWORD", "CLICKHOUSE_DATABASE"):
+    for var in (
+        "CLICKHOUSE_HOST",
+        "CLICKHOUSE_PORT",
+        "CLICKHOUSE_USER",
+        "CLICKHOUSE_PASSWORD",
+        "CLICKHOUSE_DATABASE",
+    ):
         monkeypatch.delenv(var, raising=False)
     with patch("ingestion.shared.clickhouse.clickhouse_connect") as mock_cc:
         ch._get_client()
@@ -130,8 +135,10 @@ def test_query_one_passes_parameters():
 
 def test_atomic_reload_creates_shadow_and_swaps_on_success():
     mock_client = MagicMock()
-    with patch("ingestion.shared.clickhouse.get_client", return_value=mock_client), \
-         patch("ingestion.shared.clickhouse.insert_rows") as mock_insert:
+    with (
+        patch("ingestion.shared.clickhouse.get_client", return_value=mock_client),
+        patch("ingestion.shared.clickhouse.insert_rows") as mock_insert,
+    ):
         total = ch.atomic_reload("real.table", [{"a": 1}, {"a": 2}])
 
     assert total == 2
@@ -146,8 +153,10 @@ def test_atomic_reload_creates_shadow_and_swaps_on_success():
 def test_atomic_reload_chunks_inserts():
     mock_client = MagicMock()
     rows = [{"a": i} for i in range(12)]
-    with patch("ingestion.shared.clickhouse.get_client", return_value=mock_client), \
-         patch("ingestion.shared.clickhouse.insert_rows") as mock_insert:
+    with (
+        patch("ingestion.shared.clickhouse.get_client", return_value=mock_client),
+        patch("ingestion.shared.clickhouse.insert_rows") as mock_insert,
+    ):
         total = ch.atomic_reload("real.table", rows, chunk_size=5)
 
     assert total == 12
@@ -158,8 +167,10 @@ def test_atomic_reload_chunks_inserts():
 
 def test_atomic_reload_noop_rows_still_swaps_empty_shadow():
     mock_client = MagicMock()
-    with patch("ingestion.shared.clickhouse.get_client", return_value=mock_client), \
-         patch("ingestion.shared.clickhouse.insert_rows") as mock_insert:
+    with (
+        patch("ingestion.shared.clickhouse.get_client", return_value=mock_client),
+        patch("ingestion.shared.clickhouse.insert_rows") as mock_insert,
+    ):
         total = ch.atomic_reload("real.table", [])
 
     assert total == 0
@@ -171,9 +182,11 @@ def test_atomic_reload_noop_rows_still_swaps_empty_shadow():
 def test_atomic_reload_drops_shadow_and_reraises_on_failure():
     """A mid-load failure must leave the real table untouched — no EXCHANGE, shadow dropped."""
     mock_client = MagicMock()
-    with patch("ingestion.shared.clickhouse.get_client", return_value=mock_client), \
-         patch("ingestion.shared.clickhouse.insert_rows", side_effect=RuntimeError("boom")), \
-         pytest.raises(RuntimeError):
+    with (
+        patch("ingestion.shared.clickhouse.get_client", return_value=mock_client),
+        patch("ingestion.shared.clickhouse.insert_rows", side_effect=RuntimeError("boom")),
+        pytest.raises(RuntimeError),
+    ):
         ch.atomic_reload("real.table", [{"a": 1}])
 
     commands = [c.args[0] for c in mock_client.command.call_args_list]

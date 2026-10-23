@@ -78,8 +78,13 @@ def test_jolpica_number_map_ignores_drivers_without_permanent_number():
 
 
 def test_build_driver_map_deletes_year_then_inserts():
-    with patch("ingestion.openf1.driver_map._jolpica_number_map", return_value={1: "verstappen", 44: "hamilton"}), \
-         patch("ingestion.openf1.driver_map.ch") as mock_ch:
+    with (
+        patch(
+            "ingestion.openf1.driver_map._jolpica_number_map",
+            return_value={1: "verstappen", 44: "hamilton"},
+        ),
+        patch("ingestion.openf1.driver_map.ch") as mock_ch,
+    ):
         dm.build_driver_map(2024)
 
     mock_ch.delete_rows.assert_called_once_with(
@@ -93,8 +98,10 @@ def test_build_driver_map_deletes_year_then_inserts():
 
 
 def test_build_driver_map_skips_write_when_no_rows():
-    with patch("ingestion.openf1.driver_map._jolpica_number_map", return_value={}), \
-         patch("ingestion.openf1.driver_map.ch") as mock_ch:
+    with (
+        patch("ingestion.openf1.driver_map._jolpica_number_map", return_value={}),
+        patch("ingestion.openf1.driver_map.ch") as mock_ch,
+    ):
         dm.build_driver_map(2024)
 
     mock_ch.delete_rows.assert_not_called()
@@ -103,8 +110,11 @@ def test_build_driver_map_skips_write_when_no_rows():
 
 def test_main_parses_args_and_delegates():
     import sys
+
     argv = ["prog", "--year", "2024"]
-    with patch.object(sys, "argv", argv), \
-         patch("ingestion.openf1.driver_map.build_driver_map") as mock_build:
+    with (
+        patch.object(sys, "argv", argv),
+        patch("ingestion.openf1.driver_map.build_driver_map") as mock_build,
+    ):
         dm.main()
     mock_build.assert_called_once_with(2024)

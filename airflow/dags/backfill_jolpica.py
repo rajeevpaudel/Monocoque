@@ -49,8 +49,11 @@ def backfill_jolpica():
     @task
     def ingest_season(season: int):
         from ingestion.jolpica.backfill import ingest_season as _ingest
+        from ingestion.shared.errors import IngestionIncomplete
 
-        _ingest(season)
+        failed = _ingest(season)
+        if failed:
+            raise IngestionIncomplete(f"jolpica {season} rounds", failed)
 
     @task
     def generate_seasons(start: int, end: int) -> list[int]:

@@ -64,7 +64,7 @@ SELECT
     ifNull(s.sprint_points, 0)                     AS sprint_points,
     arraySort(r.drivers)                           AS drivers,
     length(r.drivers)                              AS driver_count,
-    toUInt8(fs.championship_position = 1 AND is_season_complete = 1) AS is_champion
+    toUInt8(ifNull(fs.championship_position = 1, 0) AND is_season_complete = 1) AS is_champion
 FROM races r
 LEFT JOIN final_standings fs ON fs.season = r.season AND fs.constructor_id = r.constructor_id
 LEFT JOIN sprints s          ON s.season = r.season  AND s.constructor_id = r.constructor_id

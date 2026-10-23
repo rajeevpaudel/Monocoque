@@ -1,0 +1,22 @@
+# Install once with `make setup` (or `pre-commit install`); CI runs the same ruff checks.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.1  # keep in sync with the ruff pin in pyproject.toml
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: end-of-file-fixer
+        exclude: ^tests/fixtures/
+      - id: trailing-whitespace
+        exclude: ^tests/fixtures/
+      - id: check-added-large-files
+        args: [--maxkb=2048]
+        exclude: ^tests/fixtures/warehouse_sample/
+      - id: detect-private-key

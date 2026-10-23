@@ -28,7 +28,10 @@ def session_openf1():
 
         # dag_run.conf is arbitrary, untyped user input (unlike Param-declared configs) —
         # validate it's actually numeric before it can reach any downstream SQL/query param.
-        _ingest(int(session_key), skip_telemetry=False)
+        from ingestion.shared.errors import IngestionIncomplete
+
+        if not _ingest(int(session_key), skip_telemetry=False):
+            raise IngestionIncomplete("openf1 session", [session_key])
 
     trigger_dbt = TriggerDagRunOperator(
         task_id="trigger_dbt",

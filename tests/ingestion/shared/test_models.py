@@ -45,8 +45,12 @@ def test_jolpica_season_subclass_inherits_raw_record_fields():
 
 def test_openf1_interval_coerces_numeric_string():
     rec = OpenF1Interval(
-        session_key=1, driver_number=1, date="2024-01-01",
-        gap_to_leader="1.234", interval="0.5", _raw_json="{}",
+        session_key=1,
+        driver_number=1,
+        date="2024-01-01",
+        gap_to_leader="1.234",
+        interval="0.5",
+        _raw_json="{}",
     )
     assert rec.gap_to_leader == 1.234
     assert rec.interval == 0.5
@@ -56,8 +60,12 @@ def test_openf1_interval_coerces_lapped_marker_to_none():
     """OpenF1 marks lapped cars with a string like '+1 LAP' instead of a float —
     that must become None, not raise a validation error."""
     rec = OpenF1Interval(
-        session_key=1, driver_number=1, date="2024-01-01",
-        gap_to_leader="+1 LAP", interval="+2 LAPS", _raw_json="{}",
+        session_key=1,
+        driver_number=1,
+        date="2024-01-01",
+        gap_to_leader="+1 LAP",
+        interval="+2 LAPS",
+        _raw_json="{}",
     )
     assert rec.gap_to_leader is None
     assert rec.interval is None
@@ -65,8 +73,12 @@ def test_openf1_interval_coerces_lapped_marker_to_none():
 
 def test_openf1_interval_passes_through_numeric_types():
     rec = OpenF1Interval(
-        session_key=1, driver_number=1, date="2024-01-01",
-        gap_to_leader=1.5, interval=None, _raw_json="{}",
+        session_key=1,
+        driver_number=1,
+        date="2024-01-01",
+        gap_to_leader=1.5,
+        interval=None,
+        _raw_json="{}",
     )
     assert rec.gap_to_leader == 1.5
     assert rec.interval is None

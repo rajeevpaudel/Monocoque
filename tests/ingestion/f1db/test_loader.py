@@ -19,6 +19,7 @@ def test_load_seasons_atomically_reloads():
     zf = _zip_with("f1db-seasons.csv", "year\n2024\n2025\n")
     with patch("ingestion.f1db.loader.ch") as mock_ch:
         from ingestion.f1db import loader
+
         loader.load_seasons(zf)
 
     mock_ch.atomic_reload.assert_called_once()
@@ -40,6 +41,7 @@ def test_load_race_results_atomically_reloads_shared_helper():
     )
     with patch("ingestion.f1db.loader.ch") as mock_ch:
         from ingestion.f1db import loader
+
         loader.load_race_results(zf)
 
     table_arg = mock_ch.atomic_reload.call_args[0][0]
@@ -53,6 +55,7 @@ def test_download_rejects_malformed_version():
     import pytest
 
     from ingestion.f1db import loader
+
     with pytest.raises(ValueError):
         loader._download("not-a-real-release")
 
@@ -61,8 +64,11 @@ def test_download_accepts_well_formed_version():
     from unittest.mock import MagicMock
 
     from ingestion.f1db import loader
+
     fake_response = MagicMock()
-    fake_response.__enter__.return_value.read.return_value = b"PK\x05\x06" + b"\x00" * 18  # empty zip
+    fake_response.__enter__.return_value.read.return_value = (
+        b"PK\x05\x06" + b"\x00" * 18
+    )  # empty zip
     with patch("ingestion.f1db.loader.urllib.request.urlopen", return_value=fake_response):
         zf = loader._download("v2026.6.1")
     assert zf.namelist() == []

@@ -32,8 +32,11 @@ def backfill_openf1():
     @task
     def ingest_year(year: int, skip_telemetry: bool):
         from ingestion.openf1.backfill import ingest_year as _ingest
+        from ingestion.shared.errors import IngestionIncomplete
 
-        _ingest(year, skip_telemetry=skip_telemetry)
+        failed = _ingest(year, skip_telemetry=skip_telemetry)
+        if failed:
+            raise IngestionIncomplete(f"openf1 {year} sessions", failed)
 
     @task
     def generate_years(start: int, end: int, skip_telemetry: bool) -> list[dict]:

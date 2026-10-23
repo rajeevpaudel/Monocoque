@@ -1,0 +1,96 @@
+unit_tests:
+  - name: race_laps_clean_flags
+    description: >
+      Lap 1, pit in/out laps, neutralised laps (field median > 115% of race median) and laps
+      slower than 107% of the driver's own median are not clean.
+    model: int_race_laps_clean
+    given:
+      - input: ref('fact_laps')
+        rows:
+          - {season: 2024, round: 1, driver_id: a, lap_number: 1, lap_time_ms: 100000}
+          - {season: 2024, round: 1, driver_id: a, lap_number: 2, lap_time_ms: 90000}
+          - {season: 2024, round: 1, driver_id: a, lap_number: 3, lap_time_ms: 91000}
+          - {season: 2024, round: 1, driver_id: a, lap_number: 4, lap_time_ms: 130000}
+          - {season: 2024, round: 1, driver_id: a, lap_number: 5, lap_time_ms: 110000}
+          - {season: 2024, round: 1, driver_id: a, lap_number: 6, lap_time_ms: 99000}
+          - {season: 2024, round: 1, driver_id: b, lap_number: 1, lap_time_ms: 100000}
+          - {season: 2024, round: 1, driver_id: b, lap_number: 2, lap_time_ms: 92000}
+          - {season: 2024, round: 1, driver_id: b, lap_number: 3, lap_time_ms: 99000}
+          - {season: 2024, round: 1, driver_id: b, lap_number: 4, lap_time_ms: 130000}
+          - {season: 2024, round: 1, driver_id: b, lap_number: 5, lap_time_ms: 91000}
+          - {season: 2024, round: 1, driver_id: b, lap_number: 6, lap_time_ms: 90000}
+      - input: ref('fact_pit_stops')
+        rows:
+          - {season: 2024, round: 1, driver_id: a, lap_number: 5}
+      - input: ref('mart_stints')
+        rows: []
+      - input: ref('fact_race_results')
+        rows: []
+    expect:
+      rows:
+        # a: lap 1 | clean | clean | neutralised (SC) | in-lap | out-lap
+        - {driver_id: a, lap_number: 1, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 0}
+        - {driver_id: a, lap_number: 2, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 1}
+        - {driver_id: a, lap_number: 3, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 1}
+        - {driver_id: a, lap_number: 4, is_in_lap: 0, is_out_lap: 0, is_neutralised: 1, is_clean: 0}
+        - {driver_id: a, lap_number: 5, is_in_lap: 1, is_out_lap: 0, is_neutralised: 0, is_clean: 0}
+        - {driver_id: a, lap_number: 6, is_in_lap: 0, is_out_lap: 1, is_neutralised: 0, is_clean: 0}
+        # b: lap 3 (99 s) is > 107% of b's median (91.5 s)
+        - {driver_id: b, lap_number: 1, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 0}
+        - {driver_id: b, lap_number: 2, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 1}
+        - {driver_id: b, lap_number: 3, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 0}
+        - {driver_id: b, lap_number: 4, is_in_lap: 0, is_out_lap: 0, is_neutralised: 1, is_clean: 0}
+        - {driver_id: b, lap_number: 5, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 1}
+        - {driver_id: b, lap_number: 6, is_in_lap: 0, is_out_lap: 0, is_neutralised: 0, is_clean: 1}
+
+  - name: driver_standings_champion_logic
+    description: >
+      The champion comes from the final standings round only; a driver excluded from the final
+      standings (NULL position, e.g. Schumacher 1997) is not resurrected from an earlier round,
+      and no champion is crowned while rounds remain.
+    model: mart_driver_season_standings
+    given:
+      - input: ref('stg_jolpica__driver_standings')
+        rows:
+          - {season: 1997, round: 16, driver_id: michael_schumacher, standing_position: 1, position_text: '1', points: 78, wins: 5}
+          - {season: 1997, round: 16, driver_id: villeneuve, standing_position: 2, position_text: '2', points: 77, wins: 7}
+          - {season: 1997, round: 17, driver_id: michael_schumacher, standing_position: null, position_text: 'D', points: 78, wins: 5}
+          - {season: 1997, round: 17, driver_id: villeneuve, standing_position: 1, position_text: '1', points: 81, wins: 7}
+          - {season: 2099, round: 1, driver_id: leader, standing_position: 1, position_text: '1', points: 25, wins: 1}
+      - input: ref('fact_race_results')
+        rows:
+          - {season: 1997, round: 17, driver_id: michael_schumacher, constructor_id: ferrari, position_text: 'R', points: 0}
+          - {season: 1997, round: 17, driver_id: villeneuve, constructor_id: williams, finish_position: 3, position_text: '3', points: 4}
+          - {season: 2099, round: 1, driver_id: leader, constructor_id: x, finish_position: 1, position_text: '1', points: 25}
+      - input: ref('fact_sprint_results')
+        rows: []
+      - input: ref('dim_calendar')
+        rows:
+          - {season: 1997, round: 17, status: completed}
+          - {season: 2099, round: 1, status: completed}
+          - {season: 2099, round: 2, status: scheduled}
+      - input: ref('stg_jolpica__drivers')
+        rows: []
+    expect:
+      rows:
+        - {season: 1997, driver_id: michael_schumacher, championship_position: null, championship_position_text: 'D', is_season_complete: 1, is_champion: 0}
+        - {season: 1997, driver_id: villeneuve, championship_position: 1, championship_position_text: '1', is_season_complete: 1, is_champion: 1}
+        - {season: 2099, driver_id: leader, championship_position: 1, championship_position_text: '1', is_season_complete: 0, is_champion: 0}
+
+  - name: points_systems_expand_eras
+    description: Era seeds expand to one row per season; fastest-lap bonus applies to races only.
+    model: dim_points_systems
+    given:
+      - input: ref('points_systems')
+        rows:
+          - {season_from: 2010, season_to: 2011, session_type: race, position: 1, points: 25}
+          - {season_from: 2010, season_to: 2011, session_type: sprint, position: 1, points: 8}
+      - input: ref('points_system_rules')
+        rows:
+          - {season_from: 2010, season_to: 2011, fastest_lap_points: 1, fastest_lap_max_position: 10}
+    expect:
+      rows:
+        - {season: 2010, session_type: race, position: 1, points: 25, era: '2010-2011', fastest_lap_points: 1}
+        - {season: 2010, session_type: sprint, position: 1, points: 8, era: '2010-2011', fastest_lap_points: 0}
+        - {season: 2011, session_type: race, position: 1, points: 25, era: '2010-2011', fastest_lap_points: 1}
+        - {season: 2011, session_type: sprint, position: 1, points: 8, era: '2010-2011', fastest_lap_points: 0}

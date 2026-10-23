@@ -28,7 +28,8 @@ dbt = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
-    "ruff>=0.4",
+    "ruff==0.17.1",  # keep in sync with .pre-commit-config.yaml
+    "pre-commit>=3.7",
 ]
 
 [tool.ruff]

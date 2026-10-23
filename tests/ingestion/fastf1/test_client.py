@@ -15,13 +15,17 @@ def test_returns_required_columns():
 
 
 def test_filters_negative_distances():
-    result = _process_lap_telemetry(_make_tel([-1.0, 0.0, 10.5, 21.0]), session_key=9001, driver_number=1)
+    result = _process_lap_telemetry(
+        _make_tel([-1.0, 0.0, 10.5, 21.0]), session_key=9001, driver_number=1
+    )
     assert len(result) == 3
     assert (result["distance_m"] >= 0).all()
 
 
 def test_filters_nan_distances():
-    result = _process_lap_telemetry(_make_tel([0.0, np.nan, 21.0]), session_key=9001, driver_number=1)
+    result = _process_lap_telemetry(
+        _make_tel([0.0, np.nan, 21.0]), session_key=9001, driver_number=1
+    )
     assert len(result) == 2
 
 

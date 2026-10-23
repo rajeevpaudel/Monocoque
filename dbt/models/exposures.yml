@@ -1,0 +1,45 @@
+# Metabase dashboards built by metabase/setup_dashboards.py. Dashboard IDs are those created on a
+# fresh install; `dbt ls -s +exposure:<name>` shows everything a dashboard depends on.
+exposures:
+  - name: metabase_championship
+    label: F1 Championship
+    type: dashboard
+    maturity: high
+    url: http://localhost:3001/dashboard/2
+    description: Driver and constructor standings, points progression, team-mate head-to-heads and line-up changes.
+    depends_on:
+      - ref('mart_driver_season_standings')
+      - ref('mart_constructor_season_standings')
+      - ref('mart_standings')
+      - ref('mart_teammate_head_to_head')
+      - ref('dim_driver_team_stints')
+    owner:
+      name: Monocoque
+
+  - name: metabase_race_analysis
+    label: F1 Race Analysis
+    type: dashboard
+    maturity: high
+    url: http://localhost:3001/dashboard/3
+    description: Per-race pace gaps, positions gained, tyre degradation, stints and weather.
+    depends_on:
+      - ref('mart_race_pace')
+      - ref('mart_position_changes')
+      - ref('mart_tyre_degradation')
+      - ref('mart_weather_impact')
+    owner:
+      name: Monocoque
+
+  - name: metabase_calendar_history
+    label: F1 Calendar & History
+    type: dashboard
+    maturity: medium
+    url: http://localhost:3001/dashboard/4
+    description: Upcoming calendar, champions by season and wet races.
+    depends_on:
+      - ref('dim_calendar')
+      - ref('mart_driver_season_standings')
+      - ref('mart_constructor_season_standings')
+      - ref('mart_weather_impact')
+    owner:
+      name: Monocoque

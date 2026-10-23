@@ -51,6 +51,7 @@ def load_f1db():
         if release and release != "None":
             return release
         from ingestion.f1db.loader import _latest_version
+
         return _latest_version()
 
     @task

@@ -38,10 +38,14 @@ def test_resolve_target_sessions_skips_sprint_qualifying_and_sprint_race():
     """A sprint weekend has two Race and two Qualifying sessions per meeting;
     the LATER one of each is always the grid-setting main session."""
     sessions = [
-        _session(1, "Race", meeting_key=1, date_start="2024-03-02"),        # sprint race (earlier)
-        _session(2, "Race", meeting_key=1, date_start="2024-03-03"),        # main race (later) -> round 1
-        _session(3, "Qualifying", meeting_key=1, date_start="2024-03-01"),  # sprint qualifying (earlier)
-        _session(4, "Qualifying", meeting_key=1, date_start="2024-03-02T12:00:00"),  # main qualifying (later)
+        _session(1, "Race", meeting_key=1, date_start="2024-03-02"),  # sprint race (earlier)
+        _session(2, "Race", meeting_key=1, date_start="2024-03-03"),  # main race (later) -> round 1
+        _session(
+            3, "Qualifying", meeting_key=1, date_start="2024-03-01"
+        ),  # sprint qualifying (earlier)
+        _session(
+            4, "Qualifying", meeting_key=1, date_start="2024-03-02T12:00:00"
+        ),  # main qualifying (later)
     ]
     result = resolve_target_sessions(sessions, [1])
     assert [s.session_key for s in result] == [4]

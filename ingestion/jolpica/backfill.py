@@ -7,6 +7,7 @@ Usage:
 """
 
 import argparse
+import sys
 from collections.abc import Callable
 
 import structlog
@@ -57,13 +58,16 @@ _SEASON_TABLES = [
 
 def _round_tables(season: int) -> list[tuple[str, Callable]]:
     return [
-        ("raw_jolpica.results",               lambda rnd: endpoints.get_results(season, rnd)),
-        ("raw_jolpica.qualifying",            lambda rnd: endpoints.get_qualifying(season, rnd)),
-        ("raw_jolpica.sprint_results",        lambda rnd: endpoints.get_sprint(season, rnd)),
-        ("raw_jolpica.lap_times",             lambda rnd: endpoints.get_laps(season, rnd)),
-        ("raw_jolpica.pit_stops",             lambda rnd: endpoints.get_pit_stops(season, rnd)),
-        ("raw_jolpica.driver_standings",      lambda rnd: endpoints.get_driver_standings(season, rnd)),
-        ("raw_jolpica.constructor_standings", lambda rnd: endpoints.get_constructor_standings(season, rnd)),
+        ("raw_jolpica.results", lambda rnd: endpoints.get_results(season, rnd)),
+        ("raw_jolpica.qualifying", lambda rnd: endpoints.get_qualifying(season, rnd)),
+        ("raw_jolpica.sprint_results", lambda rnd: endpoints.get_sprint(season, rnd)),
+        ("raw_jolpica.lap_times", lambda rnd: endpoints.get_laps(season, rnd)),
+        ("raw_jolpica.pit_stops", lambda rnd: endpoints.get_pit_stops(season, rnd)),
+        ("raw_jolpica.driver_standings", lambda rnd: endpoints.get_driver_standings(season, rnd)),
+        (
+            "raw_jolpica.constructor_standings",
+            lambda rnd: endpoints.get_constructor_standings(season, rnd),
+        ),
     ]
 
 
@@ -105,23 +109,28 @@ def ingest_round(season: int, rnd: int, rlog=None) -> bool:
     return all_ok
 
 
-def ingest_season(season: int) -> None:
+def ingest_season(season: int) -> list[int]:
+    """Load every round of a season. Returns the rounds that had at least one failed table."""
     slog = log.bind(season=season)
     slog.info("starting season")
 
     races = endpoints.get_races(season)
     if not races:
         slog.info("no races found, skipping")
-        return
+        return []
 
     ch.delete_rows("raw_jolpica.races", "season = {season:UInt16}", parameters={"season": season})
     ch.insert_rows("raw_jolpica.races", [_model_to_dict(r) for r in races])
     slog.info("races stored", count=len(races))
 
-    for race in races:
-        ingest_round(season, race.round, rlog=slog.bind(round=race.round))
+    failed = [
+        race.round
+        for race in races
+        if not ingest_round(season, race.round, rlog=slog.bind(round=race.round))
+    ]
 
-    slog.info("season done")
+    slog.info("season done", failed_rounds=failed)
+    return failed
 
 
 def main():
@@ -136,10 +145,13 @@ def main():
     if not args.skip_reference:
         ingest_reference_tables()
 
-    for season in range(args.start, args.end + 1):
-        ingest_season(season)
+    failed = [
+        (season, rnd) for season in range(args.start, args.end + 1) for rnd in ingest_season(season)
+    ]
 
-    log.info("backfill complete", start=args.start, end=args.end)
+    log.info("backfill complete", start=args.start, end=args.end, failed_rounds=failed)
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

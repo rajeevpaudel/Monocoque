@@ -28,12 +28,14 @@ def parse_run_results(run_results: dict) -> list[dict]:
     failures = []
     for r in run_results.get("results", []):
         if r.get("status") in ("fail", "error"):
-            failures.append({
-                "test_name": r.get("unique_id", "unknown").split(".")[-1],
-                "status": r["status"],
-                "failures": r.get("failures", 0),
-                "message": r.get("message", ""),
-            })
+            failures.append(
+                {
+                    "test_name": r.get("unique_id", "unknown").split(".")[-1],
+                    "status": r["status"],
+                    "failures": r.get("failures", 0),
+                    "message": r.get("message", ""),
+                }
+            )
     return failures
 
 
@@ -83,7 +85,9 @@ def dq_monitor():
             text=True,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"dbt {cmd} failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}")
+            raise RuntimeError(
+                f"dbt {cmd} failed:\nSTDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+            )
         return result.stdout
 
     @task
@@ -105,17 +109,20 @@ def dq_monitor():
                 run_results = json.load(f)
             failures = parse_run_results(run_results)
         except Exception as e:
-            failures = [{
-                "test_name": "dbt_test_runner",
-                "status": "error",
-                "failures": 1,
-                "message": f"Could not read run_results.json: {e}\n\nSTDOUT:\n{result.stdout[-1000:]}",
-            }]
+            failures = [
+                {
+                    "test_name": "dbt_test_runner",
+                    "status": "error",
+                    "failures": 1,
+                    "message": f"Could not read run_results.json: {e}\n\nSTDOUT:\n{result.stdout[-1000:]}",
+                }
+            ]
             return {"failures": failures}
 
         if failures:
             try:
                 import clickhouse_connect
+
                 client = clickhouse_connect.get_client(
                     host=os.environ.get("CLICKHOUSE_HOST", "clickhouse")
                 )
@@ -143,6 +150,7 @@ def dq_monitor():
         if not failures:
             import clickhouse_connect
             from dq_telegram import send_daily_ok
+
             client = clickhouse_connect.get_client(
                 host=os.environ.get("CLICKHOUSE_HOST", "clickhouse")
             )
@@ -160,6 +168,7 @@ def dq_monitor():
             return
 
         from dq_telegram import send_alert
+
         send_alert(failures, bot_token=bot_token, chat_id=chat_id)
 
     freshness = run_dbt_freshness()

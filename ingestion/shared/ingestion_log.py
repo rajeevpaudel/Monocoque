@@ -5,6 +5,7 @@ entity_key format:
   OpenF1 sessions : str(session_key)   e.g. "9900"
   Jolpica rounds  : "season-round"     e.g. "2025-4"
 """
+
 from datetime import UTC, datetime
 
 from ingestion.shared import clickhouse as ch
@@ -55,16 +56,21 @@ def record(
     error_msg: str = "",
 ) -> None:
     """Record the outcome of ingesting one (entity, table) pair."""
-    ch.insert_rows("raw_meta.ingestion_log", [{
-        "source": source,
-        "entity_key": entity_key,
-        "table_name": table,
-        "status": _status(table, row_count, error_msg),
-        "row_count": row_count,
-        "min_expected": _MIN_ROWS.get(table, 0),
-        "error_msg": error_msg,
-        "attempted_at": datetime.now(UTC),
-    }])
+    ch.insert_rows(
+        "raw_meta.ingestion_log",
+        [
+            {
+                "source": source,
+                "entity_key": entity_key,
+                "table_name": table,
+                "status": _status(table, row_count, error_msg),
+                "row_count": row_count,
+                "min_expected": _MIN_ROWS.get(table, 0),
+                "error_msg": error_msg,
+                "attempted_at": datetime.now(UTC),
+            }
+        ],
+    )
 
 
 def needs_ingestion(source: str, entity_key: str, table: str) -> bool:

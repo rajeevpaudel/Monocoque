@@ -40,7 +40,9 @@ def _ensure_tracking_table(client) -> None:
         ORDER BY filename
     """)
     # Backfill the column for tables created before checksum tracking existed.
-    client.command(f"ALTER TABLE {_TRACKING_TABLE} ADD COLUMN IF NOT EXISTS checksum String DEFAULT ''")
+    client.command(
+        f"ALTER TABLE {_TRACKING_TABLE} ADD COLUMN IF NOT EXISTS checksum String DEFAULT ''"
+    )
 
 
 def _file_checksum(path: Path) -> str:

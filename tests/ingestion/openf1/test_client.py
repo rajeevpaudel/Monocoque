@@ -67,24 +67,30 @@ def _resp(status_code, json_body=None):
 
 def test_get_returns_list_on_success():
     resp = _resp(200, [{"a": 1}])
-    with patch("ingestion.openf1.client.httpx.Client", return_value=_client_returning(resp)), \
-         patch("ingestion.openf1.client._rate_limit"):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=_client_returning(resp)),
+        patch("ingestion.openf1.client._rate_limit"),
+    ):
         result = get("laps", {"session_key": 1})
     assert result == [{"a": 1}]
 
 
 def test_get_returns_empty_list_when_body_is_not_a_list():
     resp = _resp(200, {"detail": "not a list"})
-    with patch("ingestion.openf1.client.httpx.Client", return_value=_client_returning(resp)), \
-         patch("ingestion.openf1.client._rate_limit"):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=_client_returning(resp)),
+        patch("ingestion.openf1.client._rate_limit"),
+    ):
         result = get("laps")
     assert result == []
 
 
 def test_get_returns_empty_list_on_404():
     resp = _resp(404)
-    with patch("ingestion.openf1.client.httpx.Client", return_value=_client_returning(resp)), \
-         patch("ingestion.openf1.client._rate_limit"):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=_client_returning(resp)),
+        patch("ingestion.openf1.client._rate_limit"),
+    ):
         result = get("laps")
     assert result == []
 
@@ -92,8 +98,11 @@ def test_get_returns_empty_list_on_404():
 def test_get_raises_too_large_on_422_without_retrying():
     resp = _resp(422)
     mock_client = _client_returning(resp)
-    with patch("ingestion.openf1.client.httpx.Client", return_value=mock_client), \
-         patch("ingestion.openf1.client._rate_limit"), pytest.raises(TooLargeError):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=mock_client),
+        patch("ingestion.openf1.client._rate_limit"),
+        pytest.raises(TooLargeError),
+    ):
         get("car_data", {"session_key": 1})
     assert mock_client.__enter__.return_value.get.call_count == 1
 
@@ -102,9 +111,11 @@ def test_get_raises_api_error_immediately_on_401_without_retrying():
     """401 means a live session is locking the whole API — retrying is pointless."""
     resp = _resp(401, {"detail": "locked during live session"})
     mock_client = _client_returning(resp)
-    with patch("ingestion.openf1.client.httpx.Client", return_value=mock_client), \
-         patch("ingestion.openf1.client._rate_limit"), \
-         pytest.raises(OpenF1APIError, match="locked during live session"):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=mock_client),
+        patch("ingestion.openf1.client._rate_limit"),
+        pytest.raises(OpenF1APIError, match="locked during live session"),
+    ):
         get("laps")
     assert mock_client.__enter__.return_value.get.call_count == 1
 
@@ -114,9 +125,11 @@ def test_get_retries_on_5xx_then_succeeds():
     ok_resp = _resp(200, [{"a": 1}])
     mock_client = MagicMock()
     mock_client.__enter__.return_value.get.side_effect = [fail_resp, ok_resp]
-    with patch("ingestion.openf1.client.httpx.Client", return_value=mock_client), \
-         patch("ingestion.openf1.client._rate_limit"), \
-         patch("ingestion.openf1.client.time.sleep") as mock_sleep:
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=mock_client),
+        patch("ingestion.openf1.client._rate_limit"),
+        patch("ingestion.openf1.client.time.sleep") as mock_sleep,
+    ):
         result = get("laps")
     mock_sleep.assert_called_once()
     assert result == [{"a": 1}]
@@ -126,9 +139,12 @@ def test_get_retries_on_5xx_then_succeeds():
 def test_get_raises_api_error_after_exhausting_retries():
     resp = _resp(503)
     mock_client = _client_returning(resp)
-    with patch("ingestion.openf1.client.httpx.Client", return_value=mock_client), \
-         patch("ingestion.openf1.client._rate_limit"), \
-         patch("ingestion.openf1.client.time.sleep"), pytest.raises(OpenF1APIError):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=mock_client),
+        patch("ingestion.openf1.client._rate_limit"),
+        patch("ingestion.openf1.client.time.sleep"),
+        pytest.raises(OpenF1APIError),
+    ):
         get("laps")
     assert mock_client.__enter__.return_value.get.call_count == _MAX_RETRIES
 
@@ -136,9 +152,12 @@ def test_get_raises_api_error_after_exhausting_retries():
 def test_get_retries_on_transport_error():
     mock_client = MagicMock()
     mock_client.__enter__.return_value.get.side_effect = httpx.ConnectError("boom")
-    with patch("ingestion.openf1.client.httpx.Client", return_value=mock_client), \
-         patch("ingestion.openf1.client._rate_limit"), \
-         patch("ingestion.openf1.client.time.sleep"), pytest.raises(OpenF1APIError):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=mock_client),
+        patch("ingestion.openf1.client._rate_limit"),
+        patch("ingestion.openf1.client.time.sleep"),
+        pytest.raises(OpenF1APIError),
+    ):
         get("laps")
     assert mock_client.__enter__.return_value.get.call_count == _MAX_RETRIES
 
@@ -146,9 +165,12 @@ def test_get_retries_on_transport_error():
 def test_get_429_waits_longer_than_other_errors():
     resp = _resp(429)
     mock_client = _client_returning(resp)
-    with patch("ingestion.openf1.client.httpx.Client", return_value=mock_client), \
-         patch("ingestion.openf1.client._rate_limit"), \
-         patch("ingestion.openf1.client.time.sleep") as mock_sleep, pytest.raises(OpenF1APIError):
+    with (
+        patch("ingestion.openf1.client.httpx.Client", return_value=mock_client),
+        patch("ingestion.openf1.client._rate_limit"),
+        patch("ingestion.openf1.client.time.sleep") as mock_sleep,
+        pytest.raises(OpenF1APIError),
+    ):
         get("laps")
     # first retry wait for 429 must be the fixed 10s back-off, not 2**0
     assert mock_sleep.call_args_list[0].args[0] == 10

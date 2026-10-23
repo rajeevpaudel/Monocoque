@@ -10,6 +10,7 @@ and skipped on subsequent runs.
 """
 
 import argparse
+import sys
 from datetime import UTC, datetime
 
 import structlog
@@ -45,18 +46,18 @@ def ingest_session(session_key: int, skip_telemetry: bool = False, force: bool =
     all_ok = True
 
     core_tables = [
-        (lambda: endpoints.get_drivers(session_key),      "raw_openf1.drivers"),
-        (lambda: endpoints.get_laps(session_key),         "raw_openf1.laps"),
-        (lambda: endpoints.get_pit(session_key),          "raw_openf1.pit"),
-        (lambda: endpoints.get_stints(session_key),       "raw_openf1.stints"),
-        (lambda: endpoints.get_intervals(session_key),    "raw_openf1.intervals"),
-        (lambda: endpoints.get_position(session_key),     "raw_openf1.position"),
-        (lambda: endpoints.get_weather(session_key),      "raw_openf1.weather"),
+        (lambda: endpoints.get_drivers(session_key), "raw_openf1.drivers"),
+        (lambda: endpoints.get_laps(session_key), "raw_openf1.laps"),
+        (lambda: endpoints.get_pit(session_key), "raw_openf1.pit"),
+        (lambda: endpoints.get_stints(session_key), "raw_openf1.stints"),
+        (lambda: endpoints.get_intervals(session_key), "raw_openf1.intervals"),
+        (lambda: endpoints.get_position(session_key), "raw_openf1.position"),
+        (lambda: endpoints.get_weather(session_key), "raw_openf1.weather"),
         (lambda: endpoints.get_race_control(session_key), "raw_openf1.race_control"),
     ]
     telemetry_tables = [
-        (lambda: endpoints.get_car_data(session_key),  "raw_openf1.car_data"),
-        (lambda: endpoints.get_location(session_key),  "raw_openf1.location"),
+        (lambda: endpoints.get_car_data(session_key), "raw_openf1.car_data"),
+        (lambda: endpoints.get_location(session_key), "raw_openf1.location"),
     ]
 
     tables_to_run = core_tables if skip_telemetry else core_tables + telemetry_tables
@@ -76,17 +77,24 @@ def ingest_session(session_key: int, skip_telemetry: bool = False, force: bool =
             slog.info("ingested", table=table, count=count)
         except OpenF1APIError as e:
             log_util.record(log_util.SOURCE_OPENF1, entity_key, table, 0, str(e))
-            slog.error("openf1 api unavailable — session will be marked incomplete", table=table, error=str(e))
+            slog.error(
+                "openf1 api unavailable — session will be marked incomplete",
+                table=table,
+                error=str(e),
+            )
             all_ok = False
         except Exception as e:
             log_util.record(log_util.SOURCE_OPENF1, entity_key, table, 0, str(e))
-            slog.error("unexpected failure ingesting table", table=table, error=str(e), exc_info=True)
+            slog.error(
+                "unexpected failure ingesting table", table=table, error=str(e), exc_info=True
+            )
             all_ok = False
 
     return all_ok
 
 
-def ingest_year(year: int, skip_telemetry: bool = False) -> None:
+def ingest_year(year: int, skip_telemetry: bool = False) -> list[int]:
+    """Load every completed session of a year. Returns session_keys with a failed table."""
     ylog = log.bind(year=year)
     ylog.info("fetching sessions")
 
@@ -104,8 +112,10 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
 
     live = [s for s in sessions if s.status == "started"]
     complete = [
-        s for s in sessions
-        if s.date_end and datetime.fromisoformat(s.date_end.replace("Z", "+00:00")) < now
+        s
+        for s in sessions
+        if s.date_end
+        and datetime.fromisoformat(s.date_end.replace("Z", "+00:00")) < now
         and s.status != "started"
     ]
 
@@ -130,11 +140,14 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
 
     _TELEMETRY_TYPES = {"Race", "Qualifying"}
 
+    failed = []
     for session in complete:
         want_telemetry = not skip_telemetry and session.session_type in _TELEMETRY_TYPES
-        ingest_session(session.session_key, skip_telemetry=not want_telemetry)
+        if not ingest_session(session.session_key, skip_telemetry=not want_telemetry):
+            failed.append(session.session_key)
 
-    ylog.info("year done", sessions=len(complete), skipped_live=len(live))
+    ylog.info("year done", sessions=len(complete), skipped_live=len(live), failed_sessions=failed)
+    return failed
 
 
 def main():
@@ -150,10 +163,15 @@ def main():
 
     log.info("starting backfill", start=args.start, end=args.end)
 
-    for year in range(args.start, args.end + 1):
-        ingest_year(year, skip_telemetry=args.skip_telemetry)
+    failed = [
+        sk
+        for year in range(args.start, args.end + 1)
+        for sk in ingest_year(year, skip_telemetry=args.skip_telemetry)
+    ]
 
-    log.info("backfill complete", start=args.start, end=args.end)
+    log.info("backfill complete", start=args.start, end=args.end, failed_sessions=failed)
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

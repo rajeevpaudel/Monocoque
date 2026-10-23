@@ -100,7 +100,7 @@ services:
         condition: service_completed_successfully
 
   metabase:
-    image: metabase/metabase:latest
+    image: metabase/metabase:v0.64.3.1  # pinned: setup_dashboards.py targets the v0.64 API
     ports:
       - "3001:3000"
     environment:

@@ -14,6 +14,7 @@ Round→session mapping strategy:
 """
 
 import argparse
+import sys
 
 import structlog
 
@@ -107,6 +108,7 @@ def main():
         log.error("no sessions matched — nothing to do")
         return
 
+    failed = []
     for s in target_sessions:
         log.info("re-ingesting", session_key=s.session_key, location=s.location)
         # force=True: these sessions may already be marked 'ok' in raw_meta.ingestion_log,
@@ -116,6 +118,11 @@ def main():
             log.info("done", session_key=s.session_key)
         else:
             log.warning("completed with errors", session_key=s.session_key)
+            failed.append(s.session_key)
+
+    if failed:
+        log.error("sessions completed with errors", failed=failed)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
