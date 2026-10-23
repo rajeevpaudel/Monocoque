@@ -24,7 +24,20 @@ SELECT
     s.time_millis           AS sprint_time_ms,
     m.openf1_driver_number  AS openf1_driver_number,
     sm.session_key          AS session_key,
-    s._ingested_at          AS _ingested_at
+    -- Sprint weekend format has changed nearly every year it's existed:
+    -- 2021: "Sprint Qualifying" — a real race whose result set Sunday's grid.
+    -- 2022-2023: "Sprint"/"Sprint Shootout" — standalone, does NOT set Sunday's grid.
+    -- 2024+: "Sprint" + "Sprint Qualifying" (a knockout session) — sprint result still
+    --        does not set Sunday's grid.
+    -- A naive query against sprint_results can't tell these apart without this column.
+    multiIf(
+        s.season = 2021, '2021_sets_grid',
+        s.season IN (2022, 2023), '2022_2023_standalone',
+        s.season >= 2024, '2024_plus_standalone',
+        'unknown'
+    )                        AS sprint_format_version,
+    s.season = 2021          AS sprint_result_set_grid,
+    s._ingested_at           AS _ingested_at
 FROM {{ ref('stg_jolpica__sprint_results') }}   s
 LEFT JOIN {{ ref('driver_id_map') }}  m
     ON  m.jolpica_driver_id = s.driver_id
@@ -32,7 +45,9 @@ LEFT JOIN {{ ref('driver_id_map') }}  m
 LEFT JOIN {{ ref('int_session_map') }}          sm
     ON  sm.season       = s.season
     AND sm.round        = s.round
-    AND sm.session_type = 'Sprint'
+    -- OpenF1 tags the sprint race as session_type='Race', session_name='Sprint' (confirmed
+    -- against live data) — session_type='Sprint' never actually occurs and left this join dead.
+    AND sm.session_name = 'Sprint'
 
 {% if is_incremental() %}
 WHERE {{ changed_rounds('s.season', 's.round', 'stg_jolpica__sprint_results', 'stg_openf1__sessions', session_name='Sprint') }}

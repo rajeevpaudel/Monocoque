@@ -7,11 +7,17 @@ and triggers re-ingestion DAGs for known fixable failures.
 """
 
 import json
+import logging
 import os
+import re
 import subprocess
 from datetime import datetime, timedelta
 
 from airflow.decorators import dag, task
+
+log = logging.getLogger(__name__)
+
+_SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9_]+$")
 
 DBT_DIR = "/opt/airflow/dbt"
 DBT_PROFILES_DIR = "/opt/airflow/dbt"
@@ -39,15 +45,22 @@ def attach_failure_context(failures: list[dict], client) -> None:
     alert without round context rather than failing the task.
     """
     for f in failures:
+        test_name = f["test_name"]
+        # test_name is derived from a dbt run_results.json unique_id and is used here as a
+        # table-name identifier (ClickHouse can't parameter-bind identifiers) — validate it
+        # looks like a plain identifier before interpolating it into SQL.
+        if not _SAFE_IDENTIFIER.match(test_name):
+            log.warning("skipping failure context lookup — unsafe test_name %r", test_name)
+            continue
         try:
             rows = client.query(
-                f"SELECT DISTINCT season, round FROM test_failures.{f['test_name']} "
+                f"SELECT DISTINCT season, round FROM test_failures.{test_name} "
                 f"WHERE season IS NOT NULL AND round IS NOT NULL LIMIT 1"
             ).result_rows
             if rows:
                 f["season"], f["round"] = rows[0]
-        except Exception:
-            pass
+        except Exception as e:
+            log.warning("failure context lookup failed for %s: %s", test_name, e)
 
 
 @dag(
@@ -107,8 +120,10 @@ def dq_monitor():
                     host=os.environ.get("CLICKHOUSE_HOST", "clickhouse")
                 )
                 attach_failure_context(failures, client)
-            except Exception:
-                pass  # round context is best-effort — don't lose real failures over it
+            except Exception as e:
+                # round context is best-effort — don't lose real failures over it, but do
+                # log so a broken ClickHouse connection here isn't invisible.
+                log.warning("failure context enrichment failed: %s", e)
         return {"failures": failures}
 
     @task

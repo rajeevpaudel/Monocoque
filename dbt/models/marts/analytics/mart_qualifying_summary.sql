@@ -26,6 +26,7 @@ SELECT
     fq.jolpica_best_time_ms AS jolpica_best_time_ms,
     fq.openf1_best_time_ms  AS openf1_best_time_ms,
     fq.best_source_match    AS best_source_match,
+    fq.deleted_for_track_limits AS deleted_for_track_limits,
     fq.best_s1              AS best_s1,
     fq.best_s2              AS best_s2,
     fq.best_s3              AS best_s3,
@@ -50,9 +51,9 @@ SELECT
     -- Constructor
     c.constructor_name      AS constructor_name
 FROM {{ ref('fact_qualifying') }}               fq
-LEFT JOIN {{ ref('dim_sessions') }}             ds
+LEFT JOIN {{ ref('dim_sessions') }}    AS ds FINAL
     ON  ds.session_key = fq.session_key
-LEFT JOIN {{ ref('dim_drivers') }}              d
+LEFT JOIN {{ ref('dim_drivers') }}     AS d FINAL
     ON  d.driver_id = fq.driver_id
     AND d.season    = fq.season
 LEFT JOIN (
@@ -70,6 +71,6 @@ LEFT JOIN (
 )                                               od
     ON  od.session_key   = fq.session_key
     AND od.driver_number = fq.openf1_driver_number
-LEFT JOIN {{ ref('dim_constructors') }}         c
+LEFT JOIN {{ ref('dim_constructors') }} AS c FINAL
     ON  c.constructor_id = fq.constructor_id
     AND c.season         = fq.season
