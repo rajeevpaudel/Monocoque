@@ -23,3 +23,16 @@ seeds:
         notes: String
   - name: f1db_id_overrides
     description: Curated f1db → Jolpica id mappings for cases automatic matching gets wrong (shared team names, renamed teams). Highest precedence.
+  - name: openf1_driver_overrides
+    description: >
+      Corrections for upstream OpenF1 /drivers rows that are known to be wrong (e.g. the Hungary 2023
+      FP1 feed that mixed F3 entries into F1 car numbers). action='fix' replaces name_acronym/full_name;
+      action='exclude' drops the row. Applied in stg_openf1__drivers.
+    config:
+      column_types:
+        session_key: UInt32
+        driver_number: UInt8
+        action: String
+        name_acronym: String
+        full_name: String
+        reason: String

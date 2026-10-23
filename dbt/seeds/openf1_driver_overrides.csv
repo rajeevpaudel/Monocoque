@@ -1,0 +1,31 @@
+session_key,driver_number,action,name_acronym,full_name,reason
+9223,1,fix,VER,Max VERSTAPPEN,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,2,fix,SAR,Logan SARGEANT,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,3,fix,RIC,Daniel RICCIARDO,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,4,fix,NOR,Lando NORRIS,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,10,fix,GAS,Pierre GASLY,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,11,fix,PER,Sergio PEREZ,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,14,fix,ALO,Fernando ALONSO,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,16,fix,LEC,Charles LECLERC,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,18,fix,STR,Lance STROLL,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,20,fix,MAG,Kevin MAGNUSSEN,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,22,fix,TSU,Yuki TSUNODA,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,23,fix,ALB,Alexander ALBON,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,24,fix,ZHO,Guanyu ZHOU,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,27,fix,HUL,Nico HULKENBERG,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,31,fix,OCO,Esteban OCON,OpenF1 Hungary 2023 FP1 feed mixed with F3: acronym/full_name carry an F3 driver while first/last name and laps are the F1 driver
+9223,5,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,6,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,7,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,8,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,9,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,12,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,15,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,17,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,19,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,21,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,25,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,26,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,28,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,29,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
+9223,30,exclude,,,OpenF1 Hungary 2023 FP1 feed mixed with F3: non-F1 entry with no F1 laps
