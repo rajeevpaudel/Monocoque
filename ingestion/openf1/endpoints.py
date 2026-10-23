@@ -15,6 +15,7 @@ from ingestion.shared.models import (
     OpenF1Lap,
     OpenF1Location,
     OpenF1Pit,
+    OpenF1Position,
     OpenF1RaceControl,
     OpenF1Session,
     OpenF1Stint,
@@ -183,6 +184,22 @@ def get_intervals(session_key: int) -> list[OpenF1Interval]:
             _raw_json=raw(r),
         )
         for r in records
+    ]
+
+
+def get_position(session_key: int) -> list[OpenF1Position]:
+    records = get("position", {"session_key": session_key})
+    return [
+        OpenF1Position(
+            session_key=r["session_key"],
+            meeting_key=r.get("meeting_key") or 0,
+            driver_number=r["driver_number"],
+            date=r["date"],
+            position=r["position"],
+            _raw_json=raw(r),
+        )
+        for r in records
+        if r.get("position") is not None
     ]
 
 

@@ -5,6 +5,16 @@ It is written for the team managing the warehouse pipeline so all gaps can be fi
 
 ---
 
+## Status (re-verified against the current warehouse)
+
+- ✅ **Gap 1 / Gap 2 — Las Vegas 2024**: all 5 sessions are in `dim_sessions` (`circuit_id = vegas`) and all 20 qualifying rows are `matched`.
+- ✅ **Gap 3 — circuit length/corners**: 78/78 Jolpica circuits populated. `dim_circuits` takes `coalesce(source value, f1db current layout via f1db_circuit_xref, circuit_stats seed)`.
+- 2024 now has a single remaining qualifying mismatch (round 2, one driver).
+- New coverage since this document was written: 2023 + 2025 Jolpica/OpenF1, f1db history and upcoming calendar, OpenF1 `position` feed (`stg_openf1__position`), sampled OpenF1 car telemetry (2024 qualifying, rounds 1 and 5 — full-season telemetry stays optional because of volume and API rate limits).
+- ⚠️ **FastF1 distance telemetry (`raw_fastf1.car_telemetry`) is empty**: F1's livetiming archive now returns HTTP 401 to anonymous clients. Run `python -m fastf1 auth f1tv` (F1TV account) once, then `ingestion/fastf1/backfill.py --rounds ...`. Failed sessions are not checkpointed, so they are retried automatically.
+
+The original findings are kept below for reference.
+
 ## Summary
 
 | Priority | Gap | Affected table | Impact |

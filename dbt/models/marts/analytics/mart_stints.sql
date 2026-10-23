@@ -1,8 +1,8 @@
 -- Grain: one row per tyre stint per driver per race.
 -- OpenF1 stints only; pre-2023 rows are not represented.
 SELECT
-    sm.season,
-    sm.round,
+    sm.season                   AS season,
+    sm.round                    AS round,
     r.race_name,
     r.circuit_name,
     r.circuit_country,
@@ -14,7 +14,7 @@ SELECT
     st.lap_end,
     st.compound,
     st.tyre_age_at_start,
-    fr.constructor_id,
+    fr.constructor_id           AS constructor_id,
     d.full_name                 AS driver_name,
     d.driver_code
 FROM {{ ref('stg_openf1__stints') }}    st

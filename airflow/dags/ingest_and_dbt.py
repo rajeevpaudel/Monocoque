@@ -214,6 +214,7 @@ def ingest_and_dbt():
     @task
     def dbt_deps() -> None:
         _dbt("deps")
+        _dbt("seed")
 
     @task
     def dbt_run_staging() -> None:

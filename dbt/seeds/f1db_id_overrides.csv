@@ -1,0 +1,9 @@
+entity,f1db_id,jolpica_id
+constructor,lotus,team_lotus
+constructor,lotus-f1,lotus_f1
+constructor,lotus-racing,lotus_racing
+constructor,racing-bulls,rb
+constructor,midland,mf1
+constructor,modena,lambo
+constructor,simca-gordini,simca
+constructor,derrington-francis,derrington

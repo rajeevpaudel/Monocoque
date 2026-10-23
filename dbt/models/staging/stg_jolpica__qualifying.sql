@@ -46,7 +46,7 @@ FROM (
         NULLIF(any(q3), '')       AS q3,
         max(_ingested_at)         AS _ingested_at,
         'f1db'                    AS _source
-    FROM {{ source('raw_f1db', 'qualifying_results') }}
+    FROM {{ f1db_source('qualifying_results', driver_col='driver_id', constructor_col='constructor_id') }}
     WHERE year NOT IN (SELECT DISTINCT season FROM {{ source('raw_jolpica', 'qualifying') }})
     GROUP BY year, round, driver_id
 )

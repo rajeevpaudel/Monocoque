@@ -6,7 +6,7 @@
 {{
     config(
         engine='ReplacingMergeTree()',
-        order_by='(driver_id, valid_from)',
+        order_by="(driver_id, ifNull(valid_from, toDate('1970-01-01')))",
     )
 }}
 
@@ -25,7 +25,7 @@ SELECT
     dh.constructor_id                            AS constructor_id,
     dh.valid_from                                AS valid_from,
     dh.valid_to                                  AS valid_to,
-    dh.is_current                                AS is_current
+    ifNull(dh.is_current, toUInt8(0))            AS is_current
 FROM {{ ref('stg_jolpica__drivers') }}           d
 LEFT JOIN (
     SELECT

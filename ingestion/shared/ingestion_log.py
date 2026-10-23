@@ -21,6 +21,7 @@ _MIN_ROWS: dict[str, int] = {
     "raw_openf1.stints": 10,
     "raw_openf1.pit": 0,
     "raw_openf1.intervals": 0,
+    "raw_openf1.position": 10,
     "raw_openf1.weather": 5,
     "raw_openf1.race_control": 3,
     "raw_openf1.drivers": 10,

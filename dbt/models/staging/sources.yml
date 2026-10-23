@@ -59,6 +59,7 @@ sources:
           warn_after: {count: 20, period: day}
           error_after: {count: 40, period: day}
       - name: intervals
+      - name: position
       - name: weather
         loaded_at_field: _ingested_at
         freshness:

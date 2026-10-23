@@ -224,6 +224,14 @@ class OpenF1Stint(RawRecord):
     tyre_age_at_start: int
 
 
+class OpenF1Position(RawRecord):
+    session_key: int
+    meeting_key: int
+    driver_number: int
+    date: str
+    position: int
+
+
 class OpenF1Interval(RawRecord):
     session_key: int
     driver_number: int

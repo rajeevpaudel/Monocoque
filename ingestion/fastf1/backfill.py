@@ -102,11 +102,15 @@ def ingest_year(
     year: int,
     completed: set[str],
     on_complete: Callable[[set[str]], None] = _save_checkpoint,
+    only_rounds: set[int] | None = None,
 ) -> None:
     ylog = log.bind(year=year)
     ylog.info("building session index from OpenF1")
     index, rounds = _build_session_index(year)
     ylog.info("index built", rounds=len(rounds))
+
+    if only_rounds:
+        rounds = [r for r in rounds if r in only_rounds]
 
     for round_num in rounds:
         for identifier in IDENTIFIERS:
@@ -150,6 +154,12 @@ def main() -> None:
     parser.add_argument(
         "--reset", action="store_true", help="Ignore checkpoint and re-ingest everything"
     )
+    parser.add_argument(
+        "--rounds",
+        type=int,
+        nargs="+",
+        help="Only these round numbers (e.g. --rounds 1 5 to sample telemetry)",
+    )
     args = parser.parse_args()
 
     completed: set[str] = set()
@@ -161,7 +171,7 @@ def main() -> None:
     log.info("starting backfill", start=args.start, end=args.end, already_done=len(completed))
 
     for year in range(args.start, args.end + 1):
-        ingest_year(year, completed)
+        ingest_year(year, completed, only_rounds=set(args.rounds) if args.rounds else None)
 
     log.info("backfill complete", start=args.start, end=args.end)
 

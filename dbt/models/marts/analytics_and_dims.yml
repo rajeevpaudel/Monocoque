@@ -1,0 +1,139 @@
+version: 2
+
+models:
+  # ── Dimensions ────────────────────────────────────────────────────────────
+  - name: dim_calendar
+    description: >
+      One row per championship round (1950 → next season). Jolpica rounds plus f1db-only
+      seasons (upcoming races). Session start times in UTC; status is completed / race_week /
+      upcoming.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, round]
+    columns:
+      - name: season
+        tests: [not_null]
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: [completed, race_week, upcoming]
+
+  - name: dim_points_systems
+    description: >
+      Points awarded per finishing position for every season and session type (race,
+      sprint), expanded from the points_systems / points_system_rules seeds. Includes the
+      fastest-lap bonus rules for 1950–59 and 2019–24.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, session_type, position]
+    columns:
+      - name: points
+        tests: [not_null]
+
+  - name: dim_driver_team_stints
+    description: >
+      Contiguous driver ↔ constructor spells derived from race results (gaps-and-islands).
+      Mid-season swaps (Lawson/Tsunoda, Bearman/Ferrari one-off) appear as separate stints.
+      stint_type is one_off / short_term / mid_season / full_season.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [driver_id, stint_number]
+    columns:
+      - name: stint_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: [one_off, short_term, mid_season, full_season]
+
+  # ── Crosswalks ────────────────────────────────────────────────────────────
+  - name: f1db_driver_xref
+    description: f1db driver id → Jolpica driver id (override seed, results pairing, then name/dob).
+    columns:
+      - name: f1db_driver_id
+        tests: [unique, not_null]
+  - name: f1db_constructor_xref
+    description: f1db constructor id → Jolpica constructor id (override seed, results pairing, then name).
+    columns:
+      - name: f1db_constructor_id
+        tests: [unique, not_null]
+  - name: f1db_circuit_xref
+    description: Jolpica circuit id → f1db circuit id (same race pairing, then nearest within 15 km).
+    columns:
+      - name: jolpica_circuit_id
+        tests: [unique, not_null]
+
+  - name: stg_openf1__position
+    description: OpenF1 live position feed (one row per position change event, 2023+).
+
+  # ── Intermediate ──────────────────────────────────────────────────────────
+  - name: int_race_laps_clean
+    description: >
+      Race laps (2023+) with tyre stint/compound/age and an is_clean flag (excludes lap 1,
+      in/out laps, SC/VSC-neutralised laps and >107% outliers). fuel_corrected_lap_s assumes
+      0.03 s per lap of remaining fuel.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, round, driver_id, lap_number]
+
+  # ── Analytics marts ───────────────────────────────────────────────────────
+  - name: mart_driver_season_standings
+    description: Final drivers' championship standings plus season stats (wins, podiums, poles, DNFs, sprints).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, driver_id]
+    columns:
+      - name: points
+        tests: [not_null]
+
+  - name: mart_constructor_season_standings
+    description: Final constructors' championship standings plus season stats (wins, 1-2s, drivers used).
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, constructor_id]
+
+  - name: mart_teammate_head_to_head
+    description: >
+      Qualifying and race head-to-heads between team-mates, paired per race so mid-season
+      line-up changes are handled. Both directions present.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, constructor_id, driver_id, teammate_id]
+
+  - name: mart_tyre_degradation
+    description: Per-stint tyre degradation (fuel-corrected s/lap slope vs tyre age), 2023+.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, round, driver_id, stint_number]
+
+  - name: mart_race_pace
+    description: Median clean-lap race pace per driver, gap to fastest and to team-mate, 2023+.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, round, driver_id]
+
+  - name: mart_position_changes
+    description: >
+      Grid → finish positions gained (all eras), lap-1 gains, laps led and on-track
+      position changes (2023+), and OpenF1 live position-feed gains where ingested.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, round, driver_id]
+
+  - name: mart_weather_impact
+    description: >
+      Per-session weather summary (Race / Qualifying incl. sprint sessions, 2023+) with a wet
+      flag and pace delta versus dry sessions at the same circuit.
+    columns:
+      - name: session_key
+        tests: [unique, not_null]

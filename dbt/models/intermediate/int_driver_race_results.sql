@@ -21,7 +21,7 @@ SELECT
     l.duration_sector_2     AS of1_s2,
     l.duration_sector_3     AS of1_s3,
     sm.session_key          AS session_key,
-    r._ingested_at          AS _ingested_at
+    greatest(r._ingested_at, coalesce(l._ingested_at, r._ingested_at)) AS _ingested_at
 FROM {{ ref('stg_jolpica__results') }}          r
 LEFT JOIN {{ ref('driver_id_map') }}  m
     ON  m.jolpica_driver_id = r.driver_id
@@ -39,6 +39,7 @@ LEFT JOIN (
         duration_sector_1,
         duration_sector_2,
         duration_sector_3,
+        _ingested_at,
         row_number() OVER (
             PARTITION BY session_key, driver_number
             ORDER BY lap_duration ASC

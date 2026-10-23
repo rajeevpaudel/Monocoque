@@ -24,7 +24,9 @@ jobs:
       - name: Pytest
         run: pytest -q
 
-  dbt-parse:
+  # Builds every model and runs every data test against a small real sample
+  # (tests/fixtures/warehouse_sample, regenerate with `python scripts/sample_data.py export`).
+  dbt-build:
     runs-on: ubuntu-latest
     services:
       clickhouse:
@@ -51,10 +53,8 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install package + dbt-clickhouse
-        run: |
-          pip install -e .
-          pip install dbt-clickhouse
+      - name: Install package + pinned dbt
+        run: pip install -e ".[dbt]"
 
       - name: Apply migrations
         run: python clickhouse/migrate.py
@@ -63,6 +63,13 @@ jobs:
         working-directory: dbt
         run: dbt deps --profiles-dir .
 
-      - name: dbt parse
+      - name: Load sample data
+        run: python scripts/sample_data.py load
+
+      - name: dbt seed
         working-directory: dbt
-        run: dbt parse --profiles-dir .
+        run: dbt seed --profiles-dir .
+
+      - name: dbt build (models + tests)
+        working-directory: dbt
+        run: dbt build --profiles-dir . --exclude package:elementary

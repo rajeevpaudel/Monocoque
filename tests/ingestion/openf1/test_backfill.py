@@ -51,6 +51,7 @@ def test_ingest_session_deletes_before_reinserting():
         mock_ep.get_pit.return_value = []
         mock_ep.get_stints.return_value = []
         mock_ep.get_intervals.return_value = []
+        mock_ep.get_position.return_value = []
         mock_ep.get_weather.return_value = []
         mock_ep.get_race_control.return_value = []
         from ingestion.openf1 import backfill
@@ -69,6 +70,7 @@ def test_ingest_session_records_failed_on_api_error():
         mock_ep.get_pit.return_value = []
         mock_ep.get_stints.return_value = []
         mock_ep.get_intervals.return_value = []
+        mock_ep.get_position.return_value = []
         mock_ep.get_weather.return_value = []
         mock_ep.get_race_control.return_value = []
         from ingestion.openf1 import backfill

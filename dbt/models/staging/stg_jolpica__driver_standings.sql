@@ -25,5 +25,5 @@ SELECT
     0               AS wins,
     _ingested_at,
     'f1db'          AS _source
-FROM {{ source('raw_f1db', 'driver_standings') }}
+FROM {{ f1db_source('driver_standings', driver_col='driver_id') }}
 WHERE year NOT IN (SELECT DISTINCT season FROM {{ source('raw_jolpica', 'driver_standings') }})

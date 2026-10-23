@@ -95,10 +95,12 @@ ingest-year:
 	python ingestion/jolpica/backfill.py --start $(YEAR) --end $(YEAR) & \
 	python ingestion/openf1/backfill.py --start $(YEAR) --end $(YEAR) $(if $(SKIP_TELEMETRY),--skip-telemetry,) & \
 	wait
+	cd dbt && dbt seed --profiles-dir .
 	cd dbt && dbt run --profiles-dir .
 	cd dbt && dbt test --profiles-dir .
 
 dbt-run:
+	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt seed --profiles-dir .
 	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt run --profiles-dir .
 
 dbt-test:

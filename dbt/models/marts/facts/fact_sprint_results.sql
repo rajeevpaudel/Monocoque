@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('stg_openf1__sessions') }}
 {{
     config(
         materialized='incremental',
@@ -34,5 +35,5 @@ LEFT JOIN {{ ref('int_session_map') }}          sm
     AND sm.session_type = 'Sprint'
 
 {% if is_incremental() %}
-WHERE s._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
+WHERE {{ changed_rounds('s.season', 's.round', 'stg_jolpica__sprint_results', 'stg_openf1__sessions', session_name='Sprint') }}
 {% endif %}

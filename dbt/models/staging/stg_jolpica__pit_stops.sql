@@ -25,5 +25,5 @@ SELECT
     time_millis     AS pit_duration_ms,
     _ingested_at,
     'f1db'          AS _source
-FROM {{ source('raw_f1db', 'pit_stops') }}
+FROM {{ f1db_source('pit_stops', driver_col='driver_id') }}
 WHERE year NOT IN (SELECT DISTINCT season FROM {{ source('raw_jolpica', 'pit_stops') }})

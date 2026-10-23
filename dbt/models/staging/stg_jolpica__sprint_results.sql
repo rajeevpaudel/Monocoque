@@ -33,6 +33,6 @@ SELECT
     any(time_millis)             AS time_millis,
     max(_ingested_at)            AS _ingested_at,
     'f1db'                       AS _source
-FROM {{ source('raw_f1db', 'sprint_race_results') }}
+FROM {{ f1db_source('sprint_race_results', driver_col='driver_id', constructor_col='constructor_id') }}
 WHERE year NOT IN (SELECT DISTINCT season FROM {{ source('raw_jolpica', 'sprint_results') }})
 GROUP BY year, round, driver_id

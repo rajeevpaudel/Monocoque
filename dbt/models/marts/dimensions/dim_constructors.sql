@@ -5,7 +5,7 @@
 {{
     config(
         engine='ReplacingMergeTree()',
-        order_by='(constructor_id, valid_from)',
+        order_by="(constructor_id, ifNull(valid_from, toDate('1970-01-01')))",
     )
 }}
 
@@ -17,7 +17,7 @@ SELECT
     ch.season                                    AS season,
     ch.valid_from                                AS valid_from,
     ch.valid_to                                  AS valid_to,
-    ch.is_current                                AS is_current
+    ifNull(ch.is_current, toUInt8(0))            AS is_current
 FROM {{ ref('stg_jolpica__constructors') }}      c
 LEFT JOIN (
     SELECT

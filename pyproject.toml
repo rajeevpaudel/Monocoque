@@ -21,6 +21,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+dbt = [
+    "dbt-core==1.12.6",
+    "dbt-clickhouse==1.10.3",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",

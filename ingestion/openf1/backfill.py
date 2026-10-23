@@ -51,6 +51,7 @@ def ingest_session(session_key: int, skip_telemetry: bool = False, force: bool =
         (lambda: endpoints.get_pit(session_key),          "raw_openf1.pit"),
         (lambda: endpoints.get_stints(session_key),       "raw_openf1.stints"),
         (lambda: endpoints.get_intervals(session_key),    "raw_openf1.intervals"),
+        (lambda: endpoints.get_position(session_key),     "raw_openf1.position"),
         (lambda: endpoints.get_weather(session_key),      "raw_openf1.weather"),
         (lambda: endpoints.get_race_control(session_key), "raw_openf1.race_control"),
     ]

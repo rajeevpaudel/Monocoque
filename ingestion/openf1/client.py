@@ -10,11 +10,23 @@ import httpx
 import structlog
 
 BASE_URL = "https://api.openf1.org/v1"
-_MAX_RETRIES = 3
+_MAX_RETRIES = 6
 _RATE_LIMIT_RPS = 3
+_MAX_429_WAIT = 120
 _last_request_time: float = 0.0
 
 log = structlog.get_logger()
+
+
+def _rate_limit_wait(resp: httpx.Response, attempt: int) -> float:
+    """Back-off for 429: honor Retry-After if present, else 10s, 20s, 40s... capped."""
+    retry_after = resp.headers.get("Retry-After")
+    if retry_after:
+        try:
+            return min(float(retry_after), _MAX_429_WAIT)
+        except ValueError:
+            pass
+    return min(10 * 2**attempt, _MAX_429_WAIT)
 
 
 def _rate_limit() -> None:
@@ -62,7 +74,7 @@ def _build_url(base: str, params: dict[str, Any]) -> str:
 
 
 def get(endpoint: str, params: dict[str, Any] | None = None) -> list[dict]:
-    """GET an OpenF1 endpoint, retrying up to 3 times on transient errors.
+    """GET an OpenF1 endpoint, retrying up to _MAX_RETRIES times on transient errors.
 
     Raises TooLargeError on 422 — caller must split the request.
     Returns [] on 404.
@@ -100,8 +112,11 @@ def get(endpoint: str, params: dict[str, Any] | None = None) -> list[dict]:
                 raise OpenF1APIError(msg) from e
             last_exc = e
             if attempt < _MAX_RETRIES - 1:
-                # 429 needs a much longer back-off than other errors
-                wait = 10 if e.response.status_code == 429 else 2**attempt
+                wait = (
+                    _rate_limit_wait(e.response, attempt)
+                    if e.response.status_code == 429
+                    else 2**attempt
+                )
                 log.warning(
                     "openf1 request failed, retrying",
                     url=url,

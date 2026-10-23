@@ -41,6 +41,6 @@ SELECT
     NULL                         AS fastest_lap_speed,
     max(_ingested_at)            AS _ingested_at,
     'f1db'                       AS _source
-FROM {{ source('raw_f1db', 'race_results') }}
+FROM {{ f1db_source('race_results', driver_col='driver_id', constructor_col='constructor_id') }}
 WHERE year NOT IN (SELECT DISTINCT season FROM {{ source('raw_jolpica', 'results') }})
 GROUP BY year, round, driver_id

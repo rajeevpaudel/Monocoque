@@ -52,4 +52,5 @@ LEFT JOIN meeting_rounds                    mr
 LEFT JOIN {{ ref('dim_circuits') }}         c
     ON  c.circuit_id = mr.circuit_id
 -- Exclude sessions that couldn't be mapped to a Jolpica race round (e.g. pre-season testing).
-WHERE mr.round IS NOT NULL
+-- Pre-season testing has no matching round (NULL) and some sources use round 0.
+WHERE mr.round > 0

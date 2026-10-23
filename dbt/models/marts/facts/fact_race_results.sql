@@ -1,3 +1,6 @@
+-- depends_on: {{ ref('stg_jolpica__results') }}
+-- depends_on: {{ ref('stg_openf1__laps') }}
+-- depends_on: {{ ref('int_session_map') }}
 -- One row per driver per race (1950-present). OpenF1 columns NULL for pre-2023.
 {{
     config(
@@ -35,5 +38,5 @@ SELECT
 FROM {{ ref('int_driver_race_results') }}
 
 {% if is_incremental() %}
-WHERE _ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
+WHERE {{ changed_rounds('season', 'round', 'stg_jolpica__results', session_name='Race') }}
 {% endif %}

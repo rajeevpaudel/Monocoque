@@ -38,6 +38,7 @@ def dbt_run():
     @task
     def dbt_deps():
         _run("deps")
+        _run("seed")
 
     @task
     def dbt_run_staging():

@@ -1,0 +1,25 @@
+version: 2
+
+seeds:
+  - name: circuit_stats
+    description: Curated circuit length/corners, used only where f1db has no value.
+  - name: points_systems
+    description: Championship points per finishing position, per scoring era (season_to empty = still in force).
+    config:
+      column_types:
+        season_from: UInt16
+        season_to: Nullable(UInt16)
+        session_type: String
+        position: UInt8
+        points: Float32
+  - name: points_system_rules
+    description: Era-level rules (fastest-lap bonus, dropped scores notes).
+    config:
+      column_types:
+        season_from: UInt16
+        season_to: Nullable(UInt16)
+        fastest_lap_points: UInt8
+        fastest_lap_max_position: Nullable(UInt8)
+        notes: String
+  - name: f1db_id_overrides
+    description: Curated f1db → Jolpica id mappings for cases automatic matching gets wrong (shared team names, renamed teams). Highest precedence.

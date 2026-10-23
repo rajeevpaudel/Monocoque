@@ -23,5 +23,5 @@ SELECT
     0               AS wins,
     _ingested_at,
     'f1db'          AS _source
-FROM {{ source('raw_f1db', 'constructor_standings') }}
+FROM {{ f1db_source('constructor_standings', constructor_col='constructor_id') }}
 WHERE year NOT IN (SELECT DISTINCT season FROM {{ source('raw_jolpica', 'constructor_standings') }})

@@ -23,8 +23,7 @@ GROUP BY circuit_id
 
 UNION ALL
 
--- f1db circuits not already in jolpica (IDs differ: 'red-bull-ring' vs 'red_bull_ring').
--- Both are kept so fact rows from each source can resolve their circuit_id.
+-- f1db circuits with no Jolpica equivalent (ids mapped via f1db_source(), e.g. 'spielberg' → 'red_bull_ring').
 SELECT
     circuit_id,
     name            AS circuit_name,
@@ -38,5 +37,5 @@ SELECT
     turns           AS corners,
     _ingested_at,
     'f1db'          AS _source
-FROM {{ source('raw_f1db', 'circuits') }}
+FROM {{ f1db_source('circuits', circuit_col='circuit_id') }}
 WHERE circuit_id NOT IN (SELECT DISTINCT circuit_id FROM {{ source('raw_jolpica', 'circuits') }})

@@ -22,6 +22,6 @@ SELECT
     ''              AS url,
     _ingested_at,
     'f1db'          AS _source
-FROM {{ source('raw_f1db', 'races') }}
+FROM {{ f1db_source('races', circuit_col='circuit_id') }}
 WHERE year NOT IN (SELECT DISTINCT season FROM {{ source('raw_jolpica', 'races') }})
   AND toDate(date) <= today()

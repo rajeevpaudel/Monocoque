@@ -1,3 +1,4 @@
+-- depends_on: {{ ref('stg_openf1__sessions') }}
 -- One row per pit stop. Grain: (season, round, driver_id, stop_number).
 {{
     config(
@@ -33,5 +34,5 @@ LEFT JOIN {{ ref('int_session_map') }}          sm
     AND sm.session_name = 'Race'
 
 {% if is_incremental() %}
-WHERE p._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
+WHERE {{ changed_rounds('p.season', 'p.round', 'stg_jolpica__pit_stops', 'stg_openf1__sessions', session_name='Race') }}
 {% endif %}

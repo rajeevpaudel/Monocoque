@@ -37,7 +37,8 @@ openf1_best AS (
     SELECT
         session_key,
         driver_number,
-        toInt32(min(lap_duration) * 1000)    AS openf1_best_time_ms
+        toInt32(min(lap_duration) * 1000)    AS openf1_best_time_ms,
+        max(_ingested_at)                    AS _ingested_at
     FROM {{ ref('stg_openf1__laps') }}
     WHERE is_pit_out_lap = 0
       AND lap_duration IS NOT NULL
@@ -128,7 +129,7 @@ SELECT
         COALESCE(q.q1_ms, q.q2_ms, q.q3_ms) IS NULL,    NULL,
                                                 'mismatch'
     ) AS best_source_match,
-    q._ingested_at                      AS _ingested_at
+    greatest(q._ingested_at, coalesce(ob._ingested_at, q._ingested_at)) AS _ingested_at
 FROM {{ ref('stg_jolpica__qualifying') }}        q
 LEFT JOIN {{ ref('driver_id_map') }}   m
     ON  m.jolpica_driver_id = q.driver_id
@@ -146,5 +147,5 @@ LEFT JOIN openf1_best                            ob
     AND ob.driver_number = m.openf1_driver_number
 
 {% if is_incremental() %}
-WHERE q._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
+WHERE {{ changed_rounds('q.season', 'q.round', 'stg_jolpica__qualifying', session_name='Qualifying') }}
 {% endif %}

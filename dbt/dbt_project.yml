@@ -14,6 +14,15 @@ target-path: "target"
 clean-targets: ["target", "dbt_packages"]
 
 models:
+  elementary:
+    edr:
+      data_monitoring:
+        anomaly_detection:
+          # Legacy views that hardcode `stddev()`, which ClickHouse lacks (it uses stddevSamp).
+          metrics_anomaly_score:
+            +enabled: false
+          anomaly_threshold_sensitivity:
+            +enabled: false
   f1_warehouse:
     staging:
       +materialized: view

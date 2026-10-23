@@ -14,8 +14,8 @@ FROM {{ source('raw_jolpica', 'drivers') }}
 
 UNION ALL
 
--- f1db drivers not already in jolpica (IDs differ: 'lewis-hamilton' vs 'hamilton').
--- Both kept so fact rows from each source can resolve their driver_id.
+-- f1db drivers with no Jolpica equivalent. f1db_source() maps f1db ids to Jolpica ids
+-- ('lewis-hamilton' → 'hamilton'), so only genuinely unmatched drivers remain here.
 SELECT
     driver_id,
     first_name                           AS given_name,
@@ -28,5 +28,5 @@ SELECT
     ''                                   AS url,
     _ingested_at,
     'f1db'                               AS _source
-FROM {{ source('raw_f1db', 'drivers') }}
+FROM {{ f1db_source('drivers', driver_col='driver_id') }}
 WHERE driver_id NOT IN (SELECT DISTINCT driver_id FROM {{ source('raw_jolpica', 'drivers') }})

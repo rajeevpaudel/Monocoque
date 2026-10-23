@@ -28,7 +28,7 @@ SELECT
     ol.is_pit_out_lap       AS is_pit_out_lap,
     m.openf1_driver_number  AS openf1_driver_number,
     sm.session_key          AS session_key,
-    jl._ingested_at         AS _ingested_at
+    greatest(jl._ingested_at, coalesce(ol._ingested_at, jl._ingested_at)) AS _ingested_at
 FROM {{ ref('stg_jolpica__laps') }}             jl
 LEFT JOIN {{ ref('driver_id_map') }}  m
     ON  m.jolpica_driver_id = jl.driver_id
@@ -44,5 +44,5 @@ LEFT JOIN {{ ref('stg_openf1__laps') }}         ol
     AND ol.lap_number    = jl.lap_number
 
 {% if is_incremental() %}
-WHERE jl._ingested_at > (SELECT coalesce(max(_ingested_at), toDateTime('1970-01-01')) FROM {{ this }})
+WHERE {{ changed_rounds('jl.season', 'jl.round', 'stg_jolpica__laps', session_name='Race') }}
 {% endif %}

@@ -6,7 +6,8 @@
 {{
     config(
         materialized='incremental',
-        incremental_strategy='append',
+        incremental_strategy='delete+insert',
+        unique_key='session_key',
         engine='MergeTree()',
         partition_by='(toYear(date), session_key)',
         order_by='(session_key, driver_number, date)',
@@ -65,7 +66,12 @@ LEFT JOIN {{ ref('driver_id_map') }} jmap
     AND jmap.season               = sm.season
 
 {% if is_incremental() %}
-WHERE cd._ingested_at > (SELECT max(_ingested_at) FROM {{ this }})
+-- Rebuild whole sessions with new car_data: a re-ingested session would otherwise be
+-- appended twice (raw rows get a fresh _ingested_at on re-ingest).
+WHERE cd.session_key IN (
+    SELECT DISTINCT session_key FROM {{ ref('stg_openf1__car_data') }}
+    WHERE _ingested_at > {{ incremental_watermark() }}
+)
   AND lb.lap_number IS NOT NULL
   AND (lb.lap_end IS NULL OR cd.date < lb.lap_end)
 {% else %}

@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-airflow-common: &airflow-common
   build: ./airflow
   image: f1-airflow:local
@@ -17,7 +15,7 @@ x-airflow-common: &airflow-common
     CLICKHOUSE_PORT: "8123"
     CLICKHOUSE_USER: ${CLICKHOUSE_USER:-default}
     CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-}
-    CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-f1}
+    CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-default}
     TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
     TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
   env_file:
@@ -126,10 +124,13 @@ services:
     ports:
       - "8082:8082"
     command: >
-      sh -c "pip install dbt-clickhouse --quiet &&
+      sh -c "pip install --user --quiet dbt-core==1.12.6 dbt-clickhouse==1.10.3 &&
+             export PATH=$$HOME/.local/bin:$$PATH &&
+             dbt deps --profiles-dir /app/dbt &&
              dbt docs generate --profiles-dir /app/dbt &&
              python -m http.server 8082 --directory /app/dbt/target"
     environment:
+      - HOME=/tmp
       - CLICKHOUSE_HOST=clickhouse
       - CLICKHOUSE_USER=${CLICKHOUSE_USER:-default}
       - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD:-}

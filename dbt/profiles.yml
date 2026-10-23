@@ -9,6 +9,9 @@ f1_warehouse:
       password: "{{ env_var('CLICKHOUSE_PASSWORD', '') }}"
       schema: f1
       secure: false
+      # Standard SQL LEFT JOIN semantics: unmatched columns are NULL, not 0 / ''.
+      custom_settings:
+        join_use_nulls: 1
     elementary:
       type: clickhouse
       host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
@@ -18,6 +21,9 @@ f1_warehouse:
       schema: elementary
       database: elementary
       secure: false
+      # Standard SQL LEFT JOIN semantics: unmatched columns are NULL, not 0 / ''.
+      custom_settings:
+        join_use_nulls: 1
 
 elementary:
   target: default
@@ -31,3 +37,6 @@ elementary:
       schema: elementary
       database: elementary
       secure: false
+      # Standard SQL LEFT JOIN semantics: unmatched columns are NULL, not 0 / ''.
+      custom_settings:
+        join_use_nulls: 1
