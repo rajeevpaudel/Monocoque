@@ -67,20 +67,33 @@ all_laps AS (
 ),
 
 matched_laps AS (
+    -- Ties on lap time (OpenF1 occasionally repeats a lap_duration on the next lap) are broken by
+    -- the lap whose sectors actually sum to its duration.
     SELECT
         al.session_key     AS session_key,
         al.driver_number   AS driver_number,
-        argMin(al.lap_number,        abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS best_lap_number,
-        argMin(al.lap_duration,      abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS best_lap_duration,
-        argMin(al.duration_sector_1, abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS best_s1,
-        argMin(al.duration_sector_2, abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS best_s2,
-        argMin(al.duration_sector_3, abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS best_s3,
-        argMin(al.i1_speed,          abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS i1_speed,
-        argMin(al.i2_speed,          abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS i2_speed,
-        argMin(al.st_speed,          abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS st_speed,
-        argMin(al.segments_sector_1, abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS segments_s1,
-        argMin(al.segments_sector_2, abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS segments_s2,
-        argMin(al.segments_sector_3, abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms))) AS segments_s3
+        argMin(al.lap_number,        (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS best_lap_number,
+        argMin(al.lap_duration,      (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS best_lap_duration,
+        argMin(al.duration_sector_1, (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS best_s1,
+        argMin(al.duration_sector_2, (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS best_s2,
+        argMin(al.duration_sector_3, (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS best_s3,
+        argMin(al.i1_speed,          (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS i1_speed,
+        argMin(al.i2_speed,          (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS i2_speed,
+        argMin(al.st_speed,          (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS st_speed,
+        argMin(al.segments_sector_1, (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS segments_s1,
+        argMin(al.segments_sector_2, (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS segments_s2,
+        argMin(al.segments_sector_3, (abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)),
+            ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS segments_s3
     FROM all_laps al
     JOIN {{ ref('int_session_map') }}             sm ON sm.session_key = al.session_key
     JOIN {{ ref('driver_id_map') }}     m
@@ -93,6 +106,14 @@ matched_laps AS (
     WHERE COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms) IS NOT NULL
       AND abs(al.lap_ms - COALESCE(jms.q3_ms, jms.q2_ms, jms.q1_ms)) <= 50
     GROUP BY al.session_key, al.driver_number
+),
+
+-- A driver with a track-limits deletion event in this session is a plausible explanation for a
+-- failed ±50ms match: Jolpica's official best time excludes the deleted lap, but OpenF1's raw
+-- lap_duration doesn't know it was deleted, so the two sources can legitimately disagree.
+track_limit_flags AS (
+    SELECT DISTINCT session_key, driver_number
+    FROM {{ ref('int_track_limit_deletions') }}
 )
 
 SELECT
@@ -123,10 +144,12 @@ SELECT
     ml.segments_s2                      AS segments_s2,
     ml.segments_s3                      AS segments_s3,
     ob.openf1_best_time_ms              AS openf1_best_time_ms,
+    tld.driver_number IS NOT NULL       AS deleted_for_track_limits,
     multiIf(
         ml.best_lap_number IS NOT NULL,         'matched',
         sm.session_key     IS NULL,             'jolpica_only',
         COALESCE(q.q1_ms, q.q2_ms, q.q3_ms) IS NULL,    NULL,
+        tld.driver_number IS NOT NULL,          'mismatch_track_limits_deletion',
                                                 'mismatch'
     ) AS best_source_match,
     greatest(q._ingested_at, coalesce(ob._ingested_at, q._ingested_at)) AS _ingested_at
@@ -145,7 +168,14 @@ LEFT JOIN matched_laps                           ml
 LEFT JOIN openf1_best                            ob
     ON  ob.session_key   = sm.session_key
     AND ob.driver_number = m.openf1_driver_number
+LEFT JOIN track_limit_flags                      tld
+    ON  tld.session_key   = sm.session_key
+    AND tld.driver_number = m.openf1_driver_number
 
 {% if is_incremental() %}
 WHERE {{ changed_rounds('q.season', 'q.round', 'stg_jolpica__qualifying', session_name='Qualifying') }}
 {% endif %}
+
+-- join_use_nulls is also set warehouse-wide in profiles.yml; kept explicit here because every
+-- `x IS NULL` "no match" check below (jolpica_only / track-limits reconciliation) depends on it.
+SETTINGS join_use_nulls = 1

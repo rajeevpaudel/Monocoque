@@ -7,12 +7,14 @@ Usage:
 """
 
 import argparse
+from collections.abc import Callable
 
 import structlog
 
 from ingestion.jolpica import endpoints
 from ingestion.shared import clickhouse as ch
 from ingestion.shared import ingestion_log as log_util
+from ingestion.shared.models import model_to_dict
 
 log = structlog.get_logger()
 
@@ -25,13 +27,9 @@ REFERENCE_TABLES = [
 ]
 
 
-def _model_to_dict(m) -> dict:
-    """Pydantic model → flat dict for ClickHouse insert."""
-    d = m.model_dump(by_alias=False)
-    # Rename ingested_at → _ingested_at to match column name
-    d["_ingested_at"] = d.pop("ingested_at")
-    d["_raw_json"] = d.pop("raw_json")
-    return d
+# Backward-compatible alias — kept importable as ingestion.jolpica.backfill._model_to_dict
+# (used by airflow/dags/backfill_jolpica.py). Logic now lives in ingestion.shared.models.
+_model_to_dict = model_to_dict
 
 
 def ingest_reference_tables():
@@ -57,7 +55,7 @@ _SEASON_TABLES = [
 ]
 
 
-def _round_tables(season: int) -> list[tuple[str, callable]]:
+def _round_tables(season: int) -> list[tuple[str, Callable]]:
     return [
         ("raw_jolpica.results",               lambda rnd: endpoints.get_results(season, rnd)),
         ("raw_jolpica.qualifying",            lambda rnd: endpoints.get_qualifying(season, rnd)),
@@ -86,7 +84,11 @@ def ingest_round(season: int, rnd: int, rlog=None) -> bool:
             rlog.debug("skipping — already complete", table=table)
             continue
 
-        ch.delete_rows(table, f"season = {season} AND round = {rnd}")
+        ch.delete_rows(
+            table,
+            "season = {season:UInt16} AND round = {rnd:UInt16}",
+            parameters={"season": season, "rnd": rnd},
+        )
         try:
             rows = fetch_fn(rnd)
             count = len(rows) if rows else 0
@@ -112,7 +114,7 @@ def ingest_season(season: int) -> None:
         slog.info("no races found, skipping")
         return
 
-    ch.delete_rows("raw_jolpica.races", f"season = {season}")
+    ch.delete_rows("raw_jolpica.races", "season = {season:UInt16}", parameters={"season": season})
     ch.insert_rows("raw_jolpica.races", [_model_to_dict(r) for r in races])
     slog.info("races stored", count=len(races))
 

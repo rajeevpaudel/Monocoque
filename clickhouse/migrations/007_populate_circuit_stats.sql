@@ -1,5 +1,9 @@
 -- Populate length_km and corners for all circuits used in the 2024 season.
 -- Both `vegas` and `las_vegas` are present (Jolpica used different slugs in 2023 vs 2024).
+-- This is a curated override for circuits where f1db's circuit_id slug doesn't normalize-match
+-- Jolpica's (dash vs underscore) — e.g. 'americas' (Jolpica) vs 'austin' (f1db). Circuits outside
+-- this list are covered automatically by the f1db fallback join in stg_jolpica__circuits.sql; a
+-- new circuit only needs an entry here if its slug can't be matched to f1db by that fallback.
 
 ALTER TABLE raw_jolpica.circuits
 UPDATE

@@ -19,6 +19,7 @@ from ingestion.openf1 import endpoints
 from ingestion.openf1.client import OpenF1APIError
 from ingestion.shared import clickhouse as ch
 from ingestion.shared import ingestion_log as log_util
+from ingestion.shared.models import model_to_dict
 
 log = structlog.get_logger()
 
@@ -26,11 +27,8 @@ log = structlog.get_logger()
 # ── Core ingestion ────────────────────────────────────────────────────────────
 
 
-def _model_to_dict(m) -> dict:
-    d = m.model_dump(by_alias=False)
-    d["_ingested_at"] = d.pop("ingested_at")
-    d["_raw_json"] = d.pop("raw_json")
-    return d
+# Backward-compatible alias — logic now lives in ingestion.shared.models.
+_model_to_dict = model_to_dict
 
 
 def ingest_session(session_key: int, skip_telemetry: bool = False, force: bool = False) -> bool:
@@ -41,6 +39,7 @@ def ingest_session(session_key: int, skip_telemetry: bool = False, force: bool =
     - Records outcome in log after each table.
     Returns True if no table ended with 'failed' status.
     """
+    session_key = int(session_key)  # reject non-numeric input before it ever reaches SQL
     slog = log.bind(session_key=session_key)
     entity_key = str(session_key)
     all_ok = True
@@ -67,7 +66,7 @@ def ingest_session(session_key: int, skip_telemetry: bool = False, force: bool =
             slog.debug("skipping — already complete", table=table)
             continue
 
-        ch.delete_rows(table, f"session_key = {session_key}")
+        ch.delete_rows(table, "session_key = {sk:UInt32}", parameters={"sk": session_key})
         try:
             rows = fn()
             count = len(rows) if rows else 0
@@ -120,7 +119,7 @@ def ingest_year(year: int, skip_telemetry: bool = False) -> None:
                 status=s.status,
             )
 
-    ch.delete_rows("raw_openf1.sessions", f"year = {year}")
+    ch.delete_rows("raw_openf1.sessions", "year = {year:UInt16}", parameters={"year": year})
     ch.insert_rows("raw_openf1.sessions", [_model_to_dict(s) for s in sessions])
     ylog.info("sessions stored", total=len(sessions), complete=len(complete), live=len(live))
 

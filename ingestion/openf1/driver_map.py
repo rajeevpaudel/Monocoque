@@ -68,7 +68,7 @@ def build_driver_map(year: int):
     ]
 
     if rows:
-        ch.delete_rows("dim.driver_id_map", f"season = {year}")
+        ch.delete_rows("dim.driver_id_map", "season = {year:UInt16}", parameters={"year": year})
         ch.insert_rows("dim.driver_id_map", rows)
         slog.info("driver map inserted", count=len(rows))
     else:

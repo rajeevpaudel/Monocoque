@@ -23,10 +23,12 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 )
 def session_openf1():
     @task
-    def ingest_session(session_key: int):
+    def ingest_session(session_key: str):
         from ingestion.openf1.backfill import ingest_session as _ingest
 
-        _ingest(session_key, skip_telemetry=False)
+        # dag_run.conf is arbitrary, untyped user input (unlike Param-declared configs) —
+        # validate it's actually numeric before it can reach any downstream SQL/query param.
+        _ingest(int(session_key), skip_telemetry=False)
 
     trigger_dbt = TriggerDagRunOperator(
         task_id="trigger_dbt",

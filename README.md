@@ -41,14 +41,14 @@ FastF1       (2023–present) ──┘
 ```
 ├── clickhouse/
 │   ├── migrate.py              # Ordered, idempotent migration runner
-│   └── migrations/             # 010 SQL files — raw schema + alterations
+│   └── migrations/             # ordered SQL files — raw schema + alterations
 │
 ├── ingestion/
 │   ├── shared/                 # HTTP client, ClickHouse bulk insert, Pydantic models
 │   ├── jolpica/                # backfill.py, incremental.py, endpoints.py
 │   ├── openf1/                 # backfill.py, incremental.py, endpoints.py
 │   ├── fastf1/                 # Distance sampling
-│   └── f1db/                   # f1db release loader
+│   └── f1db/                   # loader.py — f1db CSV release load, mapped to Jolpica IDs via crosswalks
 │
 ├── dbt/
 │   ├── seeds/                  # circuit_stats, points_systems, points_system_rules, f1db_id_overrides
@@ -64,7 +64,7 @@ FastF1       (2023–present) ──┘
 │           │                   # mart_position_changes, mart_weather_impact, mart_qualifying_summary, ...
 │           └── telemetry/      # mart_lap_telemetry (per-sample, 2023+)
 │
-├── metabase/                   # setup_dashboards.py (API provisioning), queries.sql
+├── metabase/                   # setup_dashboards.py (API provisioning), queries.sql, DASHBOARD.md
 ├── scripts/sample_data.py      # Export/load the CI sample dataset (tests/fixtures/warehouse_sample)
 │
 ├── airflow/
@@ -81,11 +81,11 @@ Databases:
 
 | Database | Purpose |
 |---|---|
-| `raw_jolpica` | Append-only raw data from Jolpica |
-| `raw_openf1` | Append-only raw data from OpenF1 |
-| `raw_fastf1` | FastF1 distance-along-track telemetry |
-| `raw_f1db` | f1db release tables (1950 → upcoming season) |
-| `raw_meta` | Migration tracking and per-session ingestion log |
+| `raw_jolpica` | Raw data from Jolpica (1950–present) |
+| `raw_openf1` | Raw data from OpenF1 (2023–present) |
+| `raw_f1db` | Raw data from the f1db CSV dump (1950 → upcoming season, mapped to Jolpica IDs via dbt crosswalks) |
+| `raw_fastf1` | Raw car telemetry distance samples from FastF1 (2023+) |
+| `raw_meta` | `ingestion_log` (per-entity/table outcome tracking) and `schema_migrations` |
 | `dim` | Driver ID bridge and reference tables |
 | `f1_staging` | dbt staging views |
 | `f1_intermediate` | dbt intermediate tables |
@@ -185,11 +185,17 @@ docker compose up -d
 python clickhouse/migrate.py
 ```
 
-Safe to re-run. Applies all migrations in order, skipping any already applied.
+Applied migrations are tracked by filename in `raw_meta.schema_migrations` — re-running
+this command skips any migration already applied and only runs new files.
 
 ### 5. Ingest data
 
 ```bash
+# f1db — one-off static dump load, 1950–present results/standings (fallback for years
+# Jolpica hasn't ingested yet). Re-running picks up a new release; each table is
+# truncated before load since every release is a full dump, not a delta.
+PYTHONPATH=. python -m ingestion.f1db.loader
+
 # Jolpica — historical results, qualifying, standings (1950–present)
 PYTHONPATH=. python ingestion/jolpica/backfill.py --start 2023 --end 2024
 
@@ -343,3 +349,5 @@ populated local warehouse with `python scripts/sample_data.py export`.
 **Jolpica update lag** — Race data is published Monday 06:00 UTC. The weekly Airflow DAG is scheduled accordingly.
 
 **dbt test failures block the pipeline** — `ingest_and_dbt` DAG fails if any dbt test returns `ERROR`. Warnings (e.g. `assert_telemetry_hz`) do not block. If you need to bypass a known data quality failure during development, mark the test as `severity: warn` in the schema YAML.
+
+**No penalties or stewards' decisions** — none of the three sources publish structured penalty data (penalty type, seconds added, reason). `raw_jolpica.results.status` / f1db's `reasonRetired` can say `"Disqualified"`, and `raw_openf1.race_control` occasionally carries a stewards note as free text, but neither is a real penalties feed and neither is surfaced in any mart. No public source exists for this — treat it as a permanent gap, not a pipeline bug.

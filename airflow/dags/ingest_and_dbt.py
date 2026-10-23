@@ -74,20 +74,25 @@ def _delete_year_from_facts(year: int) -> None:
     ]:
         db, tbl = table.split(".")
         exists = client.command(
-            f"SELECT count() FROM system.tables WHERE database='{db}' AND name='{tbl}'"
+            "SELECT count() FROM system.tables WHERE database={db:String} AND name={tbl:String}",
+            parameters={"db": db, "tbl": tbl},
         )
         if exists:
-            client.command(f"DELETE FROM {table} WHERE season = {year}")
+            client.command(
+                f"DELETE FROM {table} WHERE season = {{year:UInt16}}",
+                parameters={"year": year},
+            )
 
     telemetry_exists = client.command(
         "SELECT count() FROM system.tables WHERE database='f1_mart' AND name='mart_lap_telemetry'"
     )
     if telemetry_exists:
         client.command(
-            f"DELETE FROM f1_mart.mart_lap_telemetry "
-            f"WHERE session_key IN ("
-            f"  SELECT session_key FROM f1_intermediate.int_session_map WHERE season = {year}"
-            f")"
+            "DELETE FROM f1_mart.mart_lap_telemetry "
+            "WHERE session_key IN ("
+            "  SELECT session_key FROM f1_intermediate.int_session_map WHERE season = {year:UInt16}"
+            ")",
+            parameters={"year": year},
         )
 
 

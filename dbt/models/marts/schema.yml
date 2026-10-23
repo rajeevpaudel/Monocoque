@@ -66,6 +66,10 @@ models:
           - not_null
 
   - name: fact_race_results
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['season', 'round', 'driver_id']
     columns:
       - name: race_sk
         tests:
@@ -101,6 +105,10 @@ models:
           - not_null
 
   - name: fact_qualifying
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['season', 'round', 'driver_id']
     columns:
       - name: race_sk
         tests:
@@ -122,7 +130,16 @@ models:
           - not_null
 
   - name: fact_sprint_results
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['season', 'round', 'driver_id']
     columns:
+      - name: sprint_format_version
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['2021_sets_grid', '2022_2023_standalone', '2024_plus_standalone', 'unknown']
       - name: race_sk
         tests:
           - not_null
@@ -232,6 +249,10 @@ models:
                 severity: warn
 
   - name: dim_session_drivers
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: ['session_key', 'driver_number']
     columns:
       - name: session_key
         tests:
@@ -260,4 +281,25 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: ['matched', 'jolpica_only', 'mismatch']
+                values: ['matched', 'jolpica_only', 'mismatch', 'mismatch_track_limits_deletion']
+
+  - name: fact_race_control
+    columns:
+      - name: session_key
+        tests:
+          - not_null
+      - name: event_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - vsc_start
+                  - vsc_end
+                  - sc_start
+                  - sc_end
+                  - red_flag_start
+                  - red_flag_end
+                  - track_limits_deletion
+                  - yellow_flag
+                  - other

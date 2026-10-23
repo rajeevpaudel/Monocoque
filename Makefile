@@ -116,12 +116,12 @@ dbt-docs-serve: dbt-docs
 	cd dbt && PATH="$(CURDIR)/venv/bin:$$PATH" dbt docs serve --profiles-dir . --port 8081
 
 lint:
-	ruff check ingestion/ airflow/
-	ruff format --check ingestion/ airflow/
+	venv/bin/ruff check ingestion/ airflow/
+	venv/bin/ruff format --check ingestion/ airflow/
 
 format:
-	ruff check --fix ingestion/ airflow/
-	ruff format ingestion/ airflow/
+	venv/bin/ruff check --fix ingestion/ airflow/
+	venv/bin/ruff format ingestion/ airflow/
 
 test:
-	pytest tests/
+	venv/bin/pytest tests/

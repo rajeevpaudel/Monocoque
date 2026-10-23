@@ -2,6 +2,7 @@
 
 import logging
 import random
+import threading
 import time
 from typing import Any
 
@@ -17,20 +18,39 @@ from tenacity import (
 
 log = structlog.get_logger()
 
+
+class RateLimiter:
+    """Thread-safe fixed-rate limiter with jitter, shared by every API client.
+
+    Each client (Jolpica, OpenF1, ...) gets its own instance since each API has a
+    different polite-usage ceiling; the wait/lock logic itself is identical, so it
+    lives here once instead of being reimplemented per client.
+    """
+
+    def __init__(self, requests_per_second: float, jitter_max: float = 0.3) -> None:
+        self._min_interval = 1.0 / requests_per_second
+        self._jitter_max = jitter_max
+        self._last_request_time: float | None = None
+        self._lock = threading.Lock()
+
+    def wait(self) -> None:
+        with self._lock:
+            if self._last_request_time is not None:
+                jitter = random.uniform(0, self._jitter_max)
+                elapsed = time.monotonic() - self._last_request_time
+                wait = max(0.0, self._min_interval + jitter - elapsed)
+                if wait:
+                    time.sleep(wait)
+            self._last_request_time = time.monotonic()
+
+
 # Jolpica asks for polite usage: keep well under 4 req/s
 _RATE_LIMIT_RPS = 2
-_last_request_time: float = 0.0
+_limiter = RateLimiter(_RATE_LIMIT_RPS)
 
 
 def _rate_limit():
-    global _last_request_time
-    min_interval = 1.0 / _RATE_LIMIT_RPS
-    jitter = random.uniform(0, 0.3)
-    elapsed = time.monotonic() - _last_request_time
-    wait = max(0.0, min_interval + jitter - elapsed)
-    if wait:
-        time.sleep(wait)
-    _last_request_time = time.monotonic()
+    _limiter.wait()
 
 
 def _is_retryable(exc: BaseException) -> bool:

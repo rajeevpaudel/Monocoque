@@ -12,13 +12,13 @@ SELECT
     cs.standing_position    AS constructor_position,
     cs.points               AS constructor_points
 FROM {{ ref('stg_jolpica__driver_standings') }}         ds
-LEFT JOIN {{ ref('dim_drivers') }}                      d
+LEFT JOIN {{ ref('dim_drivers') }}          AS d FINAL
     ON  d.driver_id = ds.driver_id
     AND d.season    = ds.season
 LEFT JOIN {{ ref('stg_jolpica__constructor_standings')}} cs
     ON  cs.season          = ds.season
     AND cs.round           = ds.round
     AND cs.constructor_id  = ds.constructor_id
-LEFT JOIN {{ ref('dim_constructors') }}                 c
+LEFT JOIN {{ ref('dim_constructors') }}     AS c FINAL
     ON  c.constructor_id = ds.constructor_id
     AND c.season         = ds.season

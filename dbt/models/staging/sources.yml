@@ -25,10 +25,30 @@ sources:
           warn_after: {count: 20, period: day}
           error_after: {count: 40, period: day}
       - name: sprint_results
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: lap_times
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: pit_stops
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: driver_standings
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: constructor_standings
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
 
   - name: raw_openf1
     database: raw_openf1
@@ -66,6 +86,10 @@ sources:
           warn_after: {count: 20, period: day}
           error_after: {count: 40, period: day}
       - name: race_control
+        loaded_at_field: _ingested_at
+        freshness:
+          warn_after: {count: 20, period: day}
+          error_after: {count: 40, period: day}
       - name: car_data
         loaded_at_field: _ingested_at
         freshness:
@@ -76,6 +100,13 @@ sources:
   - name: raw_f1db
     database: raw_f1db
     schema: raw_f1db
+    # f1db is a one-off static dump reloaded on new GitHub releases (irregular cadence, can be
+    # months apart), unlike Jolpica/OpenF1's weekly cycle — freshness thresholds are set loose
+    # accordingly so a normal release gap doesn't page anyone.
+    loaded_at_field: _ingested_at
+    freshness:
+      warn_after: {count: 120, period: day}
+      error_after: {count: 240, period: day}
     tables:
       - name: seasons
       - name: circuits
