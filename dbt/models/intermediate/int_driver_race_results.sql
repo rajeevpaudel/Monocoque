@@ -4,7 +4,7 @@ SELECT
     r.season                AS season,
     r.round                 AS round,
     r.driver_id             AS driver_id,
-    m.openf1_driver_number  AS openf1_driver_number,
+    m.driver_number  AS openf1_driver_number,
     r.constructor_id        AS constructor_id,
     r.grid_position         AS grid_position,
     r.finish_position       AS finish_position,
@@ -23,14 +23,14 @@ SELECT
     sm.session_key          AS session_key,
     greatest(r._ingested_at, coalesce(l._ingested_at, r._ingested_at)) AS _ingested_at
 FROM {{ ref('stg_jolpica__results') }}          r
-LEFT JOIN {{ ref('driver_id_map') }}  m
-    ON  m.jolpica_driver_id = r.driver_id
-    AND m.season            = r.season
 LEFT JOIN {{ ref('int_session_map') }}          sm
     ON  sm.season       = r.season
     AND sm.round        = r.round
     AND sm.session_type = 'Race'
     AND sm.session_name = 'Race'
+LEFT JOIN {{ ref('driver_session_map') }}     m
+    ON  m.session_key       = sm.session_key
+    AND m.jolpica_driver_id = r.driver_id
 LEFT JOIN (
     SELECT
         session_key,
@@ -48,5 +48,5 @@ LEFT JOIN (
     WHERE lap_duration IS NOT NULL
 ) l
     ON  l.session_key   = sm.session_key
-    AND l.driver_number = m.openf1_driver_number
+    AND l.driver_number = m.driver_number
     AND l.fastest_lap_rn = 1

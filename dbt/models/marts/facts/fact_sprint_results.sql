@@ -22,7 +22,7 @@ SELECT
     s.laps_completed        AS laps_completed,
     s.status                AS status,
     s.time_millis           AS sprint_time_ms,
-    m.openf1_driver_number  AS openf1_driver_number,
+    m.driver_number  AS openf1_driver_number,
     sm.session_key          AS session_key,
     -- Sprint weekend format has changed nearly every year it's existed:
     -- 2021: "Sprint Qualifying" — a real race whose result set Sunday's grid.
@@ -39,15 +39,15 @@ SELECT
     s.season = 2021          AS sprint_result_set_grid,
     s._ingested_at           AS _ingested_at
 FROM {{ ref('stg_jolpica__sprint_results') }}   s
-LEFT JOIN {{ ref('driver_id_map') }}  m
-    ON  m.jolpica_driver_id = s.driver_id
-    AND m.season            = s.season
 LEFT JOIN {{ ref('int_session_map') }}          sm
     ON  sm.season       = s.season
     AND sm.round        = s.round
     -- OpenF1 tags the sprint race as session_type='Race', session_name='Sprint' (confirmed
     -- against live data) — session_type='Sprint' never actually occurs and left this join dead.
     AND sm.session_name = 'Sprint'
+LEFT JOIN {{ ref('driver_session_map') }}     m
+    ON  m.session_key       = sm.session_key
+    AND m.jolpica_driver_id = s.driver_id
 
 {% if is_incremental() %}
 WHERE {{ changed_rounds('s.season', 's.round', 'stg_jolpica__sprint_results', 'stg_openf1__sessions', session_name='Sprint') }}

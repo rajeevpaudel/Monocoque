@@ -96,9 +96,9 @@ matched_laps AS (
             ifNull(abs(al.duration_sector_1 + al.duration_sector_2 + al.duration_sector_3 - al.lap_duration), 1e9))) AS segments_s3
     FROM all_laps al
     JOIN {{ ref('int_session_map') }}             sm ON sm.session_key = al.session_key
-    JOIN {{ ref('driver_id_map') }}     m
-        ON  m.openf1_driver_number = al.driver_number
-        AND m.season               = sm.season
+    JOIN {{ ref('driver_session_map') }}         m
+        ON  m.session_key   = al.session_key
+        AND m.driver_number = al.driver_number
     JOIN jolpica_ms                              jms
         ON  jms.season    = sm.season
         AND jms.round     = sm.round
@@ -130,7 +130,7 @@ SELECT
     q.q2_ms                             AS q2_ms,
     q.q3_ms                             AS q3_ms,
     COALESCE(q.q3_ms, q.q2_ms, q.q1_ms) AS jolpica_best_time_ms,
-    m.openf1_driver_number              AS openf1_driver_number,
+    m.driver_number              AS openf1_driver_number,
     sm.session_key                      AS session_key,
     ml.best_lap_number                  AS best_lap_number,
     ml.best_lap_duration                AS best_lap_duration,
@@ -154,23 +154,23 @@ SELECT
     ) AS best_source_match,
     greatest(q._ingested_at, coalesce(ob._ingested_at, q._ingested_at)) AS _ingested_at
 FROM {{ ref('stg_jolpica__qualifying') }}        q
-LEFT JOIN {{ ref('driver_id_map') }}   m
-    ON  m.jolpica_driver_id = q.driver_id
-    AND m.season            = q.season
 LEFT JOIN {{ ref('int_session_map') }}           sm
     ON  sm.season       = q.season
     AND sm.round        = q.round
     AND sm.session_type = 'Qualifying'
     AND sm.session_name = 'Qualifying'
+LEFT JOIN {{ ref('driver_session_map') }}        m
+    ON  m.session_key       = sm.session_key
+    AND m.jolpica_driver_id = q.driver_id
 LEFT JOIN matched_laps                           ml
     ON  ml.session_key   = sm.session_key
-    AND ml.driver_number = m.openf1_driver_number
+    AND ml.driver_number = m.driver_number
 LEFT JOIN openf1_best                            ob
     ON  ob.session_key   = sm.session_key
-    AND ob.driver_number = m.openf1_driver_number
+    AND ob.driver_number = m.driver_number
 LEFT JOIN track_limit_flags                      tld
     ON  tld.session_key   = sm.session_key
-    AND tld.driver_number = m.openf1_driver_number
+    AND tld.driver_number = m.driver_number
 
 {% if is_incremental() %}
 WHERE {{ changed_rounds('q.season', 'q.round', 'stg_jolpica__qualifying', session_name='Qualifying') }}

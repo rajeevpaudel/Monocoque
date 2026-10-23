@@ -32,7 +32,7 @@ FastF1       (2023–present) ──┘
 
 **FastF1** — Python library providing distance-along-track data to complement OpenF1's GPS coordinates.
 
-**Driver ID bridge** — Jolpica uses string slugs (`hamilton`); OpenF1 uses integers (`44`). `dim.driver_id_map` is the join spine between sources. Rebuilt at the start of each season.
+**Driver ID bridge** — Jolpica uses string slugs (`hamilton`); OpenF1 uses integers (`44`). `f1_staging.driver_session_map` is the join spine between sources, at **session** grain `(session_key, driver_number)`: car numbers get reused within a season (FP1 rookies, reserve drivers, mid-season substitutes), so a per-season map misattributes drivers. Matching uses OpenF1 acronym + surname against Jolpica/f1db driver codes. Corrupt upstream OpenF1 rows are fixed or excluded via the `openf1_driver_overrides` seed. FP1-only drivers with no Jolpica/f1db record stay unmapped (NULL `driver_id`).
 
 ---
 

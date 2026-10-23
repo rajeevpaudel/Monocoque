@@ -26,22 +26,22 @@ SELECT
     ol.i2_speed             AS i2_speed,
     ol.st_speed             AS st_speed,
     ol.is_pit_out_lap       AS is_pit_out_lap,
-    m.openf1_driver_number  AS openf1_driver_number,
+    m.driver_number  AS openf1_driver_number,
     sm.session_key          AS session_key,
     ts.track_status         AS track_status,
     greatest(jl._ingested_at, coalesce(ol._ingested_at, jl._ingested_at)) AS _ingested_at
 FROM {{ ref('stg_jolpica__laps') }}             jl
-LEFT JOIN {{ ref('driver_id_map') }}  m
-    ON  m.jolpica_driver_id = jl.driver_id
-    AND m.season            = jl.season
 LEFT JOIN {{ ref('int_session_map') }}          sm
     ON  sm.season        = jl.season
     AND sm.round         = jl.round
     AND sm.session_type  = 'Race'
     AND sm.session_name  = 'Race'
+LEFT JOIN {{ ref('driver_session_map') }}     m
+    ON  m.session_key       = sm.session_key
+    AND m.jolpica_driver_id = jl.driver_id
 LEFT JOIN {{ ref('stg_openf1__laps') }}         ol
     ON  ol.session_key   = sm.session_key
-    AND ol.driver_number = m.openf1_driver_number
+    AND ol.driver_number = m.driver_number
     AND ol.lap_number    = jl.lap_number
 LEFT JOIN {{ ref('int_lap_track_status') }}     ts
     ON  ts.session_key   = sm.session_key

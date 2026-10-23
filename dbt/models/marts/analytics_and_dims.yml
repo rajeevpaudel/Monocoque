@@ -50,6 +50,30 @@ models:
                 values: [one_off, short_term, mid_season, full_season]
 
   # ── Crosswalks ────────────────────────────────────────────────────────────
+  - name: driver_session_map
+    description: >
+      OpenF1 (session_key, driver_number) → Jolpica driver_id, matched on name acronym + surname.
+      Session grain handles FP1 rookie/test drivers, mid-season number changes (Bearman 2024
+      #38/#50) and numbers reused by different FP1 drivers in one season (2025 #89).
+      Drivers with no Jolpica/f1db record (FP1-only rookies) have no row.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [session_key, driver_number]
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [session_key, jolpica_driver_id]
+    columns:
+      - name: jolpica_driver_id
+        tests: [not_null]
+  - name: driver_id_map
+    description: >
+      Season summary of driver_session_map (every number a driver used that season). Not unique
+      per season — join facts through driver_session_map on session_key.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [season, jolpica_driver_id, openf1_driver_number]
   - name: f1db_driver_xref
     description: f1db driver id → Jolpica driver id (override seed, results pairing, then name/dob).
     columns:

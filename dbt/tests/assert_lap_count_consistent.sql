@@ -24,10 +24,10 @@ JOIN {{ ref('int_session_map') }} sm
     AND sm.round        = jl.round
     AND sm.session_type = 'Race'
     AND sm.session_name = 'Race'
-JOIN {{ ref('driver_id_map') }} m
-    ON  m.jolpica_driver_id = jl.driver_id
-    AND m.season            = jl.season
+JOIN {{ ref('driver_session_map') }} m
+    ON  m.session_key       = sm.session_key
+    AND m.jolpica_driver_id = jl.driver_id
 JOIN openf1_laps ol
     ON  ol.session_key   = sm.session_key
-    AND ol.driver_number = m.openf1_driver_number
+    AND ol.driver_number = m.driver_number
 WHERE abs(jl.lap_count - ol.lap_count) > 2

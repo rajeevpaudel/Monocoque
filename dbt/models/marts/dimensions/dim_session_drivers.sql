@@ -34,7 +34,6 @@ FROM (
     FROM {{ ref('stg_openf1__drivers') }}
     GROUP BY session_key, driver_number
 )                                               d
-LEFT JOIN {{ ref('int_session_map') }}          sm   ON sm.session_key = d.session_key
-LEFT JOIN {{ ref('driver_id_map') }}            jmap
-    ON  jmap.openf1_driver_number = d.driver_number
-    AND jmap.season               = sm.season
+LEFT JOIN {{ ref('driver_session_map') }}       jmap
+    ON  jmap.session_key   = d.session_key
+    AND jmap.driver_number = d.driver_number

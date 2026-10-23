@@ -61,9 +61,9 @@ ASOF LEFT JOIN {{ ref('stg_fastf1__distances') }} f1d
     AND f1d.date         <= cd.date
 LEFT JOIN {{ ref('int_session_map') }}      sm
     ON  sm.session_key = cd.session_key
-LEFT JOIN {{ ref('driver_id_map') }} jmap
-    ON  jmap.openf1_driver_number = cd.driver_number
-    AND jmap.season               = sm.season
+LEFT JOIN {{ ref('driver_session_map') }} jmap
+    ON  jmap.session_key   = cd.session_key
+    AND jmap.driver_number = cd.driver_number
 
 {% if is_incremental() %}
 -- Rebuild whole sessions with new car_data: a re-ingested session would otherwise be

@@ -70,6 +70,6 @@ SELECT
     lv.live_position_losses                        AS live_position_losses
 FROM res r
 LEFT JOIN lap_chart lc ON lc.season = r.season AND lc.round = r.round AND lc.driver_id = r.driver_id
-LEFT JOIN {{ ref('driver_id_map') }} m
-    ON m.season = r.season AND m.jolpica_driver_id = r.driver_id
-LEFT JOIN live lv ON lv.session_key = r.session_key AND lv.driver_number = m.openf1_driver_number
+LEFT JOIN {{ ref('driver_session_map') }} m
+    ON m.session_key = r.session_key AND m.jolpica_driver_id = r.driver_id
+LEFT JOIN live lv ON lv.session_key = r.session_key AND lv.driver_number = m.driver_number

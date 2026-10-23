@@ -24,9 +24,9 @@ JOIN {{ ref('int_session_map') }}       sm
     AND sm.session_name = 'Race'
 LEFT JOIN {{ ref('dim_races') }} AS r FINAL
     ON  r.season = sm.season AND r.round = sm.round
-LEFT JOIN {{ ref('driver_id_map') }}   jmap
-    ON  jmap.openf1_driver_number = st.driver_number
-    AND jmap.season               = sm.season
+LEFT JOIN {{ ref('driver_session_map') }}   jmap
+    ON  jmap.session_key   = st.session_key
+    AND jmap.driver_number = st.driver_number
 LEFT JOIN {{ ref('fact_race_results') }} fr
     ON  fr.season    = sm.season
     AND fr.round     = sm.round

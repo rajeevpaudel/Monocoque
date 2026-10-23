@@ -20,18 +20,18 @@ SELECT
     p.pit_time_of_day   AS pit_time_of_day,
     p.pit_duration      AS pit_duration,
     p.pit_duration_ms   AS pit_duration_ms,
-    m.openf1_driver_number AS openf1_driver_number,
+    m.driver_number AS openf1_driver_number,
     sm.session_key      AS session_key,
     p._ingested_at      AS _ingested_at
 FROM {{ ref('stg_jolpica__pit_stops') }}        p
-LEFT JOIN {{ ref('driver_id_map') }}            m
-    ON  m.jolpica_driver_id = p.driver_id
-    AND m.season            = p.season
 LEFT JOIN {{ ref('int_session_map') }}          sm
     ON  sm.season       = p.season
     AND sm.round        = p.round
     AND sm.session_type = 'Race'
     AND sm.session_name = 'Race'
+LEFT JOIN {{ ref('driver_session_map') }}     m
+    ON  m.session_key       = sm.session_key
+    AND m.jolpica_driver_id = p.driver_id
 
 {% if is_incremental() %}
 WHERE {{ changed_rounds('p.season', 'p.round', 'stg_jolpica__pit_stops', 'stg_openf1__sessions', session_name='Race') }}
